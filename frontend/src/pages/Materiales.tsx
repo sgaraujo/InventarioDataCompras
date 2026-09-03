@@ -165,31 +165,38 @@ export function Materiales() {
 
   return (
     <section className="view">
-      <div style={{ marginBottom: 16, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+      <div className="filtros-mov">
         {editable && (
           <button type="button" className="btn-nuevo" onClick={abrirNuevo}>
             + Nuevo material
           </button>
         )}
-        <select value={empresaFiltro} onChange={(e) => cambiarEmpresaFiltro(e.target.value)}>
-          <option value="">Todas las empresas</option>
-          {empresas.map((emp) => (
-            <option key={emp.id} value={emp.id}>
-              {emp.nombre}
-            </option>
-          ))}
-        </select>
-        <input
-          type="text"
-          placeholder="Buscar por descripción o código..."
-          value={searchParams.get("q") ?? ""}
-          onChange={(e) => {
-            const next = new URLSearchParams(searchParams);
-            if (e.target.value) next.set("q", e.target.value);
-            else next.delete("q");
-            setSearchParams(next, { replace: true });
-          }}
-        />
+        <div>
+          <label>Empresa</label>
+          <select value={empresaFiltro} onChange={(e) => cambiarEmpresaFiltro(e.target.value)}>
+            <option value="">Todas las empresas</option>
+            {empresas.map((emp) => (
+              <option key={emp.id} value={emp.id}>
+                {emp.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div style={{ flex: "1 1 260px" }}>
+          <label>Buscar</label>
+          <input
+            type="text"
+            style={{ width: "100%" }}
+            placeholder="Buscar por descripción o código..."
+            value={searchParams.get("q") ?? ""}
+            onChange={(e) => {
+              const next = new URLSearchParams(searchParams);
+              if (e.target.value) next.set("q", e.target.value);
+              else next.delete("q");
+              setSearchParams(next, { replace: true });
+            }}
+          />
+        </div>
       </div>
 
       {editable && mostrarForm && (
