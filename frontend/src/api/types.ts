@@ -1,17 +1,28 @@
-export type Rol = "admin" | "almacenista" | "consulta" | "supervisor" | "tecnico-ejecutor" | "coordinador";
+// Roles heredados de ProyectoDatacenter (almacenista, tecnico-ejecutor...) se
+// mantienen por ahora porque las paginas viejas del dominio de materiales
+// (Usuarios.tsx, Auditoria.tsx, Trazabilidad.tsx) todavia los referencian --
+// se limpian cuando esas paginas se reescriban para compras. Los roles reales
+// del nuevo dominio (respaldados por la tabla perfiles en Supabase, ver
+// supabase/migrations/0001_init.sql) son admin/comprador/aprobador/consulta.
+export type Rol =
+  | "admin"
+  | "comprador"
+  | "aprobador"
+  | "consulta"
+  | "almacenista"
+  | "supervisor"
+  | "tecnico-ejecutor"
+  | "coordinador";
 
+// Perfil en Supabase (tabla "perfiles", enlazada 1:1 a auth.users por id) +
+// el email que vive en Supabase Auth, no en la tabla propia.
 export interface Usuario {
-  id: number;
+  id: string;
   nombre: string;
   email: string;
   rol: Rol;
   activo: boolean;
   creado_en: string;
-  // Pensado a futuro para cuando existan varios almacenes con su propio
-  // material -- por ahora solo asocia la persona a un almacen, opcional.
-  almacen_id: number | null;
-  almacen_nombre: string | null;
-  invitacion_pendiente: boolean;
 }
 
 export interface Categoria {
@@ -439,4 +450,45 @@ export interface Lpu {
 
 export interface ApiError {
   error: string;
+}
+
+// ===========================================================================
+// Dominio de compras (nuevo, respaldado por Supabase -- ver
+// supabase/migrations/0001_init.sql). Cabecera + lineas + eventos, mismo
+// patron que SolicitudSalida en ProyectoDatacenter.
+// ===========================================================================
+
+export type EstadoOrdenCompra = "borrador" | "pendiente" | "aprobada" | "rechazada" | "cancelada";
+
+export interface OrdenCompraItem {
+  id: number;
+  orden_id: number;
+  descripcion: string;
+  cantidad: string;
+  precio_unitario: string;
+  subtotal: string;
+}
+
+export type TipoEventoOrdenCompra = "creada" | "enviada_aprobacion" | "aprobada" | "rechazada" | "cancelada";
+
+export interface OrdenCompraEvento {
+  id: number;
+  orden_id: number;
+  tipo: TipoEventoOrdenCompra;
+  actor: string | null;
+  nota: string | null;
+  creado_en: string;
+}
+
+export interface OrdenCompra {
+  id: number;
+  numero: string;
+  estado: EstadoOrdenCompra;
+  proveedor: string;
+  observaciones: string | null;
+  total: string;
+  creado_por: string;
+  creado_en: string;
+  items?: OrdenCompraItem[];
+  eventos?: OrdenCompraEvento[];
 }
