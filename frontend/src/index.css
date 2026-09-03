@@ -779,17 +779,24 @@ form.form-grid button:disabled {
   align-items: center;
   gap: 6px;
   padding: 10px 16px;
-  background: var(--teal);
-  color: #fff;
-  border: none;
+  background: #fff;
+  color: var(--teal-dark);
+  border: 1px solid var(--teal);
   border-radius: 8px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
 }
 
-.btn-nuevo:hover { background: var(--teal-dark); }
+.btn-nuevo:hover { background: var(--teal-light); }
+.btn-nuevo:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }
 .btn-nuevo:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Variante para la accion "negativa" de un toolbar (ej. Registrar salida) --
+   mismo look blanco/con borde que .btn-nuevo, en tono rojo en vez de teal. */
+.btn-nuevo.danger { color: var(--danger); border-color: var(--danger); }
+.btn-nuevo.danger:hover { background: var(--danger-bg); }
+.btn-nuevo.danger:focus-visible { outline-color: var(--danger); }
 
 /* Boton secundario: acciones que no son la principal del formulario (ej. Cancelar) */
 form.form-grid button.btn-secundario {
@@ -823,6 +830,25 @@ form.form-grid button.btn-secundario:hover {
   background: var(--teal-light);
   color: var(--teal-dark);
   border-color: var(--teal);
+}
+
+.btn-editar:focus-visible,
+.btn-rechazar:focus-visible,
+.filtros-mov button:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 1px;
+}
+
+/* Select dentro de una celda de tabla (ej. cambiar rol en Usuarios) -- sin
+   esto hereda el estilo nativo del navegador, que se ve angosto y desalineado. */
+.tabla select {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  background: #fff;
+  color: var(--text);
+  min-width: 150px;
 }
 
 .empty-state {

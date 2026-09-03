@@ -1,7 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "../api/supabaseClient";
 import { subirEvidencia } from "../api/storage";
-import type { Material, Solicitante, TipoMovimiento } from "../api/types";
+import type { Material, Movimiento, Solicitante, TipoMovimiento } from "../api/types";
+import { money } from "../lib/labels";
 import { Modal } from "../components/Modal";
 import { ComboMaterial } from "../components/ComboMaterial";
 
@@ -25,6 +26,26 @@ export function Movimientos() {
   const [mensaje, setMensaje] = useState<{ texto: string; tipo: "ok" | "error" } | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [mostrarForm, setMostrarForm] = useState(false);
+  const [recientes, setRecientes] = useState<Movimiento[]>([]);
+  const [cargandoRecientes, setCargandoRecientes] = useState(true);
+
+  async function cargarRecientes() {
+    setCargandoRecientes(true);
+    const { data } = await supabase
+      .from("movimientos")
+      .select("*, materiales(codigo, descripcion), solicitantes(nombre)")
+      .order("creado_en", { ascending: false })
+      .limit(10);
+    setRecientes(
+      (data ?? []).map((m) => ({
+        ...m,
+        material_codigo: (m.materiales as { codigo: string } | null)?.codigo ?? "—",
+        material_descripcion: (m.materiales as { descripcion: string } | null)?.descripcion ?? "—",
+        solicitante_nombre: (m.solicitantes as { nombre: string } | null)?.nombre ?? null,
+      })) as Movimiento[]
+    );
+    setCargandoRecientes(false);
+  }
 
   async function cargarMateriales() {
     const { data } = await supabase
@@ -43,6 +64,7 @@ export function Movimientos() {
 
   useEffect(() => {
     cargarMateriales();
+    cargarRecientes();
     supabase
       .from("solicitantes")
       .select("*")
@@ -98,7 +120,7 @@ export function Movimientos() {
       });
       if (error) throw error;
       cerrarForm();
-      await cargarMateriales();
+      await Promise.all([cargarMateriales(), cargarRecientes()]);
       setMensaje({ texto: "Movimiento registrado correctamente.", tipo: "ok" });
     } catch (err) {
       setMensaje({ texto: err instanceof Error ? err.message : "Error al registrar el movimiento", tipo: "error" });
@@ -114,7 +136,7 @@ export function Movimientos() {
         <button type="button" className="btn-nuevo" onClick={() => abrirNuevo("entrada")}>
           + Registrar entrada
         </button>
-        <button type="button" className="btn-rechazar" onClick={() => abrirNuevo("salida")}>
+        <button type="button" className="btn-nuevo danger" onClick={() => abrirNuevo("salida")}>
           + Registrar salida
         </button>
       </div>
@@ -196,6 +218,50 @@ export function Movimientos() {
           {mensaje && <div className={`mensaje-form ${mensaje.tipo}`}>{mensaje.texto}</div>}
         </Modal>
       )}
+
+      <div className="panel">
+        <h2>Últimos movimientos</h2>
+        <div className="tabla-wrap">
+          <table className="tabla">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Material</th>
+                <th>Tipo</th>
+                <th>Cantidad</th>
+                <th>Solicitante</th>
+              </tr>
+            </thead>
+            <tbody>
+              {cargandoRecientes ? (
+                <tr>
+                  <td colSpan={5} className="empty-state">
+                    Cargando...
+                  </td>
+                </tr>
+              ) : recientes.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="empty-state">
+                    Aún no hay movimientos registrados.
+                  </td>
+                </tr>
+              ) : (
+                recientes.map((m) => (
+                  <tr key={m.id}>
+                    <td>{new Date(m.creado_en).toLocaleString("es-CO")}</td>
+                    <td>{m.material_descripcion}</td>
+                    <td>
+                      <span className={`badge ${m.tipo}`}>{m.tipo === "entrada" ? "Entrada" : "Salida"}</span>
+                    </td>
+                    <td>{money(m.cantidad)}</td>
+                    <td>{m.solicitante_nombre || "—"}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </section>
   );
 }

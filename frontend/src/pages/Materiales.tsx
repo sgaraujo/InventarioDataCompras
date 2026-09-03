@@ -165,12 +165,15 @@ export function Materiales() {
 
   return (
     <section className="view">
-      <div className="filtros-mov">
-        {editable && (
+      {editable && (
+        <div style={{ marginBottom: 16 }}>
           <button type="button" className="btn-nuevo" onClick={abrirNuevo}>
             + Nuevo material
           </button>
-        )}
+        </div>
+      )}
+
+      <div className="filtros-mov">
         <div>
           <label>Empresa</label>
           <select value={empresaFiltro} onChange={(e) => cambiarEmpresaFiltro(e.target.value)}>
