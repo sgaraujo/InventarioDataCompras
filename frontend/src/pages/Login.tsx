@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { ApiClientError } from "../api/client";
 
@@ -34,7 +34,7 @@ export function Login() {
     <div className="login-wrap">
       <div className="login-card">
         <img src="/img/logo1.png" alt="Inteegra" />
-        <h1>Almacén de materiales</h1>
+        <h1>Control de Inventarios</h1>
         {mensajeExito && <div className="login-msg login-msg--ok">{mensajeExito}</div>}
         <form onSubmit={handleSubmit}>
           <div className="campo">
@@ -64,9 +64,6 @@ export function Login() {
           </button>
         </form>
         <div id="login-error">{error}</div>
-        <div className="login-links">
-          <Link to="/olvide-password">¿Olvidaste tu contraseña?</Link>
-        </div>
       </div>
       <div className="credito-app">by Equipo Transformación Digital - Inteegra</div>
     </div>

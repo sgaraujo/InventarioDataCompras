@@ -1,93 +1,69 @@
-import { useEffect, useRef, useState } from "react";
-import { api, ApiClientError, descargarArchivo } from "../api/client";
+import { useEffect, useState } from "react";
+import { supabase } from "../api/supabaseClient";
 import type { Movimiento } from "../api/types";
-import { money, ESTADO_MOVIMIENTO_LABEL } from "../lib/labels";
-import { useAuth } from "../context/AuthContext";
+import { money } from "../lib/labels";
 import { Paginacion } from "../components/Paginacion";
 import { usePaginacion } from "../hooks/usePaginacion";
-import { Download } from "lucide-react";
+import { FileText, Image as ImageIcon } from "lucide-react";
 
 const TAMANO_PAGINA = 25;
 
-// Vista de solo lectura del historial combinado (entradas, salidas, rechazos,
-// cancelaciones, bajas de material, devoluciones). Separada de Entradas.tsx
-// (donde vive la accion de registrar) a pedido explicito, para no mezclar la
-// accion con la consulta.
 export function Historial() {
-  const { usuario } = useAuth();
-
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
-  const [cargandoTabla, setCargandoTabla] = useState(true);
+  const [cargando, setCargando] = useState(true);
 
   const [filtroTipo, setFiltroTipo] = useState("");
-  const [filtroEstado, setFiltroEstado] = useState("");
   const [filtroDesde, setFiltroDesde] = useState("");
   const [filtroHasta, setFiltroHasta] = useState("");
-  const [filtroRef, setFiltroRef] = useState("");
-  const [filtroOrden, setFiltroOrden] = useState("");
-  const [filtroResponsable, setFiltroResponsable] = useState("");
+  const [filtroTexto, setFiltroTexto] = useState("");
 
-  function construirParamsFiltro() {
-    const params = new URLSearchParams();
-    if (filtroTipo) params.set("tipo", filtroTipo);
-    if (filtroEstado) params.set("estado", filtroEstado);
-    if (filtroDesde) params.set("desde", filtroDesde);
-    if (filtroHasta) params.set("hasta", filtroHasta);
-    if (filtroRef) params.set("ref", filtroRef);
-    if (filtroOrden) params.set("orden", filtroOrden);
-    if (filtroResponsable) params.set("responsable", filtroResponsable);
-    return params;
+  async function cargarMovimientos() {
+    setCargando(true);
+    let query = supabase
+      .from("movimientos")
+      .select("*, materiales(codigo, descripcion), solicitantes(nombre)")
+      .order("creado_en", { ascending: false })
+      .limit(500);
+    if (filtroTipo) query = query.eq("tipo", filtroTipo);
+    if (filtroDesde) query = query.gte("creado_en", filtroDesde);
+    if (filtroHasta) query = query.lte("creado_en", `${filtroHasta}T23:59:59`);
+    const { data } = await query;
+    setMovimientos(
+      (data ?? []).map((m) => ({
+        ...m,
+        material_codigo: (m.materiales as { codigo: string } | null)?.codigo ?? "—",
+        material_descripcion: (m.materiales as { descripcion: string } | null)?.descripcion ?? "—",
+        solicitante_nombre: (m.solicitantes as { nombre: string } | null)?.nombre ?? null,
+      })) as Movimiento[]
+    );
+    setCargando(false);
   }
 
-  function cargarMovimientos() {
-    setCargandoTabla(true);
-    return api
-      .get<Movimiento[]>(`/api/movimientos?${construirParamsFiltro().toString()}`)
-      .then(setMovimientos)
-      .finally(() => setCargandoTabla(false));
-  }
+  useEffect(() => {
+    cargarMovimientos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtroTipo, filtroDesde, filtroHasta]);
 
-  const [exportando, setExportando] = useState(false);
-  const [errorExportar, setErrorExportar] = useState<string | null>(null);
-
-  async function exportar() {
-    setExportando(true);
-    setErrorExportar(null);
-    try {
-      await descargarArchivo(`/api/movimientos/exportar?${construirParamsFiltro().toString()}`, "movimientos.xlsx");
-    } catch (err) {
-      setErrorExportar(err instanceof ApiClientError ? err.message : "Error al exportar");
-    } finally {
-      setExportando(false);
-    }
-  }
+  const filtrados = movimientos.filter((m) => {
+    if (!filtroTexto) return true;
+    const t = filtroTexto.toLowerCase();
+    return (
+      m.material_descripcion.toLowerCase().includes(t) ||
+      m.material_codigo.toLowerCase().includes(t) ||
+      (m.solicitante_nombre ?? "").toLowerCase().includes(t)
+    );
+  });
 
   const { pageItems, total, totalPaginas, paginaActual, desde, hasta, irAPagina } = usePaginacion(
-    movimientos,
+    filtrados,
     TAMANO_PAGINA
   );
 
-  // No reinicia a la pagina 1 en la primera carga -- solo cuando el usuario
-  // de verdad cambia un filtro.
-  const primeraCargaRef = useRef(true);
-  useEffect(() => {
-    cargarMovimientos();
-    if (primeraCargaRef.current) {
-      primeraCargaRef.current = false;
-    } else {
-      irAPagina(1);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtroTipo, filtroEstado, filtroDesde, filtroHasta, filtroRef, filtroOrden, filtroResponsable]);
-
   function limpiarFiltros() {
     setFiltroTipo("");
-    setFiltroEstado("");
     setFiltroDesde("");
     setFiltroHasta("");
-    setFiltroRef("");
-    setFiltroOrden("");
-    setFiltroResponsable("");
+    setFiltroTexto("");
   }
 
   return (
@@ -104,17 +80,6 @@ export function Historial() {
             </select>
           </div>
           <div>
-            <label>Estado</label>
-            <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)}>
-              <option value="">Todos</option>
-              <option value="lista">Material OK</option>
-              <option value="rechazada">Rechazada</option>
-              <option value="cancelada">Cancelada</option>
-              <option value="baja">Baja de material</option>
-              <option value="devolucion">Devuelto a stock</option>
-            </select>
-          </div>
-          <div>
             <label>Desde</label>
             <input type="date" value={filtroDesde} onChange={(e) => setFiltroDesde(e.target.value)} />
           </div>
@@ -123,69 +88,42 @@ export function Historial() {
             <input type="date" value={filtroHasta} onChange={(e) => setFiltroHasta(e.target.value)} />
           </div>
           <div>
-            <label>RF</label>
-            <input
-              type="number"
-              inputMode="numeric"
-              placeholder="Buscar RF..."
-              value={filtroRef}
-              onChange={(e) => setFiltroRef(e.target.value)}
-            />
-          </div>
-          <div>
-            <label>N° Orden</label>
+            <label>Buscar</label>
             <input
               type="text"
-              placeholder="OS-001, OE-001..."
-              value={filtroOrden}
-              onChange={(e) => setFiltroOrden(e.target.value)}
+              placeholder="Material, código o solicitante..."
+              value={filtroTexto}
+              onChange={(e) => setFiltroTexto(e.target.value)}
             />
           </div>
-          {usuario?.rol !== "tecnico-ejecutor" && (
-            <div>
-              <label>Responsable</label>
-              <input
-                type="text"
-                placeholder="Buscar técnico o almacenista..."
-                value={filtroResponsable}
-                onChange={(e) => setFiltroResponsable(e.target.value)}
-              />
-            </div>
-          )}
           <button type="button" className="btn-editar" onClick={limpiarFiltros}>
             Limpiar filtros
           </button>
-          <button type="button" className="btn-editar" onClick={exportar} disabled={exportando}>
-            <Download size={14} /> {exportando ? "Exportando..." : "Exportar"}
-          </button>
         </div>
-        {errorExportar && <div className="mensaje-form error">{errorExportar}</div>}
         <div className="tabla-wrap">
           <table className="tabla">
             <thead>
               <tr>
                 <th>Fecha</th>
-                <th>N° Orden</th>
-                <th>Producto</th>
+                <th>Código</th>
+                <th>Material</th>
                 <th>Tipo</th>
                 <th>Cantidad</th>
-                <th>Estado</th>
-                <th>Proveedor</th>
-                <th>Responsable</th>
-                <th>RF</th>
+                <th>Solicitante</th>
                 <th>Observaciones</th>
+                <th>Evidencia</th>
               </tr>
             </thead>
             <tbody>
-              {cargandoTabla ? (
+              {cargando ? (
                 <tr>
-                  <td colSpan={10} className="empty-state">
+                  <td colSpan={8} className="empty-state">
                     Cargando...
                   </td>
                 </tr>
               ) : pageItems.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="empty-state">
+                  <td colSpan={8} className="empty-state">
                     No hay movimientos con ese filtro.
                   </td>
                 </tr>
@@ -193,25 +131,29 @@ export function Historial() {
                 pageItems.map((m) => (
                   <tr key={m.id}>
                     <td>{new Date(m.creado_en).toLocaleString("es-CO")}</td>
-                    <td>{m.numero_orden || "—"}</td>
-                    <td>{m.producto}</td>
+                    <td>{m.material_codigo}</td>
+                    <td>{m.material_descripcion}</td>
                     <td>
                       <span className={`badge ${m.tipo}`}>{m.tipo === "entrada" ? "Entrada" : "Salida"}</span>
                     </td>
-                    <td>
-                      {money(m.cantidad)} {m.unidad}
-                    </td>
-                    <td>
-                      {m.estado ? (
-                        <span className={`badge ${m.estado}`}>{ESTADO_MOVIMIENTO_LABEL[m.estado]}</span>
-                      ) : (
-                        "N/A"
-                      )}
-                    </td>
-                    <td>{m.proveedor_nombre || "N/A"}</td>
-                    <td>{m.responsable || "—"}</td>
-                    <td>{m.rf_relacionada || "N/A"}</td>
+                    <td>{money(m.cantidad)}</td>
+                    <td>{m.solicitante_nombre || "—"}</td>
                     <td>{m.observaciones || "—"}</td>
+                    <td>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        {m.foto && (
+                          <a href={m.foto} target="_blank" rel="noreferrer" title="Ver foto">
+                            <ImageIcon size={16} />
+                          </a>
+                        )}
+                        {m.adjunto && (
+                          <a href={m.adjunto} target="_blank" rel="noreferrer" title="Ver soporte">
+                            <FileText size={16} />
+                          </a>
+                        )}
+                        {!m.foto && !m.adjunto && "—"}
+                      </div>
+                    </td>
                   </tr>
                 ))
               )}

@@ -1,8 +1,14 @@
 # InventarioDataCompras
 
-Nuevo sistema de compras, con backend en Supabase. Ver `GUIA_FRONTEND_NUEVO_PROYECTO.md`
-y `GUIA_BASE_DATOS_SUPABASE.md` para el detalle de arquitectura (son la referencia de
-como se armo esto a partir de ProyectoDatacenter).
+Sistema de control de inventario (materiales, entradas/salidas) por empresa y
+centro de costo, con backend en Supabase. El alcance real salió de la
+solicitud del cliente (ver `DESARROLLO INVENTARIO.xlsx`, con sus empresas,
+centros de costo, solicitantes y el inventario actual que ya maneja) -- no es
+un flujo de compras con aprobación, es control de existencias.
+
+Ver `GUIA_FRONTEND_NUEVO_PROYECTO.md` y `GUIA_BASE_DATOS_SUPABASE.md` para el
+detalle de arquitectura general (son la referencia de cómo se armó esto a
+partir de ProyectoDatacenter).
 
 ## Setup local
 
@@ -21,21 +27,38 @@ como se armo esto a partir de ProyectoDatacenter).
    ```sql
    update public.perfiles set rol = 'admin' where id = '<tu-uuid>';
    ```
-   (roles disponibles: `admin`, `comprador`, `aprobador`, `consulta`)
+   (roles disponibles: `admin`, `almacenista`, `consulta`)
 4. `npm run dev` y entra a http://localhost:5173/login
 
 ## Backend (Supabase)
 
-El esquema completo (tablas, triggers, políticas RLS) vive en
-`supabase/migrations/0001_init.sql`, pensado para pegarse tal cual en el SQL
-Editor del proyecto de Supabase. Es idempotente -- correrlo de nuevo no rompe
-nada ni duplica datos.
+El esquema vive en `supabase/migrations/` (correr en orden, son idempotentes):
 
-## Estado actual
+- `0001_init.sql`: perfiles (enlazados a auth.users) y roles.
+- `0002_inventario.sql`: reemplaza el dominio inicial (compras con aprobación,
+  descartado) por el real -- `empresas`, `centros_costo`, `solicitantes`,
+  `materiales` (código autogenerado, foto, stock mantenido por trigger) y
+  `movimientos` (entrada/salida, solicitante, foto, soporte documental).
+  Incluye la función RPC `resumen_movimientos_mensual()` para el gráfico del
+  Dashboard, y el bucket de Storage `evidencias` para fotos/soportes.
 
-El frontend todavía trae copiadas las páginas del dominio de materiales de
-ProyectoDatacenter (Materiales, Entradas, Herramientas, etc.) -- son solo la
-base de referencia de patrones de UI. El dominio real de este proyecto
-(Órdenes de Compra) todavía no tiene páginas propias; por ahora el backend
-soporta login/roles y la tabla `ordenes_compra` (cabecera + líneas + eventos
-de aprobación).
+Los datos semilla (empresas, centros de costo, solicitantes y los 41
+materiales reales con su historial de movimientos Feb-Mayo 2026) salen de
+`DESARROLLO INVENTARIO.xlsx` y ya están cargados en el proyecto de Supabase.
+
+## Módulos
+
+- **Dashboard**: existencias, movimientos del mes, entradas vs. salidas por mes.
+- **Materiales**: catálogo con código, empresa, centro de costo, foto y stock
+  actual. Crear/editar (admin y almacenista).
+- **Movimientos**: registrar entradas y salidas (material, cantidad,
+  solicitante, foto de evidencia, soporte documental). Admin y almacenista.
+- **Historial**: consulta y filtro de todos los movimientos, con enlaces a
+  la foto/soporte de cada uno. Todos los roles (solo lectura).
+
+## Pendiente para siguientes iteraciones
+
+- Exportar a Excel (materiales / historial).
+- Gestión de usuarios y roles desde la UI (hoy se asigna por SQL).
+- Recuperar contraseña (se quitó el flujo viejo, falta re-wirearlo con
+  `supabase.auth.resetPasswordForEmail`).
