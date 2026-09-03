@@ -1,0 +1,2066 @@
+:root {
+  color-scheme: light;
+
+  --teal: #14919b;
+  --teal-dark: #0d6e76;
+  --teal-light: #e3f4f5;
+  --lime: #b9d634;
+  --lime-dark: #93ab1f;
+  --lime-light: #f4f8de;
+
+  --bg: #eef2f2;
+  --panel-bg: #ffffff;
+  --sidebar-bg: #ffffff;
+  --text: #1f2937;
+  --text-muted: #64748b;
+  --border: #e2e8e8;
+
+  --success: #2e8b3d;
+  --success-bg: #e7f6ea;
+  --warning: #b45309;
+  --warning-bg: #fef3e2;
+  --danger: #c0392b;
+  --danger-bg: #fceceb;
+
+  --shadow: 0 1px 2px rgba(20, 40, 40, 0.06), 0 1px 8px rgba(20, 40, 40, 0.06);
+  --radius: 10px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.app {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 196px;
+  flex-shrink: 0;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
+/* Alto fijo e igual al de .topbar (mismo valor en los dos), para que la linea
+   de abajo del logo quede exactamente a la misma altura que la linea de abajo
+   de la barra superior -- si no, cada caja mide lo que le pida su contenido y
+   las dos lineas quedan desalineadas entre si. */
+.sidebar__brand {
+  min-height: 84px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebar__logo {
+  width: 100%;
+  height: auto;
+  max-height: 56px;
+  object-fit: contain;
+  display: block;
+}
+
+.sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 8px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 11px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13.5px;
+  border-radius: 8px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.nav-item .icon { flex-shrink: 0; }
+
+.nav-item:hover {
+  background: var(--teal-light);
+  color: var(--teal-dark);
+}
+
+.nav-item.active {
+  background: var(--teal);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.sidebar__footer {
+  padding: 12px 12px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+}
+
+#usuario-info {
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+#usuario-info .usuario-rol {
+  text-transform: capitalize;
+  color: var(--teal-dark);
+  font-weight: 600;
+}
+
+.btn-logout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 7px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.btn-logout:hover {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+/* Menu hamburguesa (solo visible en mobile/tablet, ver media query) */
+.btn-menu {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--border);
+  background: var(--panel-bg);
+  border-radius: 8px;
+  font-size: 18px;
+  color: var(--text);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.sidebar__backdrop {
+  display: none;
+}
+
+/* Main */
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 84px;
+  padding: 20px 28px;
+  background: var(--panel-bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar h1 {
+  font-size: 21px;
+  margin: 0;
+  color: var(--text);
+}
+
+.topbar__subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.topbar__search input {
+  width: 260px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.topbar__search input:focus {
+  outline: none;
+  border-color: var(--teal);
+  background: #fff;
+}
+
+.topbar__acciones {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* Campanita de notificaciones */
+.notif-bell {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.notif-bell__boton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--border);
+  background: var(--panel-bg);
+  border-radius: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.notif-bell__boton:hover {
+  background: var(--teal-light);
+  color: var(--teal-dark);
+  border-color: var(--teal);
+}
+
+.notif-bell__contador {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  border-radius: 999px;
+  min-width: 17px;
+  height: 17px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+}
+
+.notif-bell__panel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  max-height: min(400px, 70vh);
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.notif-bell__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.notif-bell__header-acciones {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.notif-bell__header button {
+  background: none;
+  border: none;
+  color: var(--teal-dark);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.notif-bell__lista {
+  overflow-y: auto;
+}
+
+.notif-bell__item {
+  position: relative;
+  padding: 10px 30px 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.notif-bell__borrar {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 5px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.notif-bell__borrar:hover {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.notif-bell__item:last-child { border-bottom: none; }
+
+.notif-bell__item.no-leida {
+  background: var(--teal-light);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.notif-bell__fecha {
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.notif-bell__vacio {
+  padding: 20px 14px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.view {
+  padding: 24px 28px 40px;
+}
+
+/* Stat cards */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: var(--panel-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 18px 20px;
+  border-left: 4px solid var(--teal);
+}
+
+.stat-card--warn { border-left-color: var(--warning); }
+.stat-card--danger { border-left-color: var(--danger); }
+.stat-card--info { border-left-color: var(--lime-dark); }
+
+.stat-card__label {
+  display: block;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+
+.stat-card__value {
+  display: block;
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* Dashboard: graficos por rol (2026-09-02, en pruebas) -- cada .panel decide
+   solo si aparece o no (ver Dashboard.tsx), el grid se acomoda a los que
+   queden. margin-bottom:0 en los panels de aca porque el gap del grid ya
+   pone el espacio entre ellos -- si no, quedaria doble espacio entre filas. */
+.dashboard-graficas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.dashboard-graficas .panel {
+  margin-bottom: 0;
+}
+
+.dashboard-graficas .panel h2 {
+  margin-bottom: 4px;
+}
+
+/* Panels */
+.panel {
+  background: var(--panel-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 20px 22px;
+  margin-bottom: 20px;
+}
+
+.panel h2 {
+  font-size: 16px;
+  margin: 0 0 14px;
+  color: var(--text);
+}
+
+.panel--form {
+  max-width: 640px;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.tab {
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel-bg);
+  color: var(--text-muted);
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
+.tab:hover { border-color: var(--teal); color: var(--teal-dark); }
+
+.tab.active {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* Table */
+.tabla-wrap { overflow-x: auto; }
+
+table.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+}
+
+table.tabla th {
+  text-align: left;
+  padding: 6px 8px;
+  background: #f7f9f9;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 2px solid var(--border);
+  /* Antes forzaba "nowrap": en tablas con muchas columnas (Materiales tiene
+     14) eso obligaba encabezados como "Valor unitario" a exigir una columna
+     ancha solo para caber en una linea, aunque el dato de abajo fuera corto.
+     Dejando que el encabezado pase a una segunda linea, cada columna solo
+     ocupa lo que su contenido realmente necesita. */
+  white-space: normal;
+  line-height: 1.25;
+}
+
+table.tabla td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+table.tabla tbody tr:hover { background: #f7fafa; }
+
+/* La ultima columna (casi siempre "Acciones") queda fija a la derecha
+   mientras se hace scroll horizontal -- en pantallas angostas/portatiles
+   con varias columnas, sin esto habia que desplazarse hasta el final cada
+   vez para ver los botones. */
+table.tabla th:last-child,
+table.tabla td:last-child {
+  position: sticky;
+  right: 0;
+  background: var(--panel-bg);
+  box-shadow: -6px 0 6px -6px rgba(15, 23, 23, 0.15);
+}
+
+table.tabla thead th:last-child {
+  background: #f7f9f9;
+  z-index: 2;
+}
+
+table.tabla tbody tr:hover td:last-child { background: #f7fafa; }
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.badge.ok { background: var(--success-bg); color: var(--success); }
+.badge.bajo_minimo { background: var(--warning-bg); color: var(--warning); }
+.badge.sin_existencias { background: var(--danger-bg); color: var(--danger); }
+.badge.entrada { background: var(--success-bg); color: var(--success); }
+.badge.salida { background: var(--danger-bg); color: var(--danger); }
+.badge.pendiente { background: var(--warning-bg); color: var(--warning); }
+.badge.aprobada { background: var(--success-bg); color: var(--success); }
+.badge.rechazada { background: var(--danger-bg); color: var(--danger); }
+.badge.lista { background: var(--teal-light); color: var(--teal-dark); }
+.badge.sin_reportar { background: var(--warning-bg); color: var(--warning); }
+.badge.pendiente_correccion { background: var(--danger-bg); color: var(--danger); }
+.badge.pendiente_aprobacion { background: var(--lime-light); color: var(--lime-dark); }
+.badge.pendiente_disposicion { background: var(--danger-bg); color: var(--danger); }
+.badge.cerrada { background: var(--teal-light); color: var(--teal-dark); }
+.badge.calidad { background: var(--lime-light); color: var(--lime-dark); }
+.badge.finalizado { background: var(--teal-light); color: var(--teal-dark); }
+.badge.facturado { background: var(--success-bg); color: var(--success); }
+.badge.cancelada { background: var(--border); color: var(--text-muted); }
+.badge.baja { background: var(--warning-bg); color: var(--warning); }
+.badge.devolucion { background: var(--lime-light); color: var(--lime-dark); }
+
+.cat-pill {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  background: var(--teal-light);
+  color: var(--teal-dark);
+  text-transform: capitalize;
+}
+
+/* Combo de busqueda de material */
+.material-combo {
+  position: relative;
+}
+
+.combo-opciones {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 20;
+}
+
+.combo-opciones .combo-item {
+  padding: 8px 12px;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
+.combo-opciones .combo-item:hover {
+  background: var(--teal-light);
+  color: var(--teal-dark);
+}
+
+.combo-opciones .combo-vacio {
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* Filtros movimientos */
+.filtros-mov {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.filtros-mov label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 5px;
+  font-weight: 600;
+}
+
+.filtros-mov select,
+.filtros-mov input {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13.5px;
+  background: #ffffff;
+  color: var(--text);
+}
+
+.filtros-mov button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 14px;
+  border: 1px solid var(--border);
+  background: var(--panel-bg);
+  color: var(--text-muted);
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.filtros-mov button:hover {
+  border-color: var(--teal);
+  color: var(--teal-dark);
+}
+
+/* Paginacion */
+.paginacion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+
+.paginacion__botones {
+  display: flex;
+  gap: 6px;
+}
+
+.paginacion button {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  background: var(--panel-bg);
+  color: var(--text);
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.paginacion button:hover:not(:disabled) {
+  border-color: var(--teal);
+  color: var(--teal-dark);
+}
+
+.paginacion button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Form */
+form.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+form.form-grid .full { grid-column: 1 / -1; }
+
+.texto-ayuda {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+form.form-grid label {
+  display: block;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-bottom: 5px;
+  font-weight: 600;
+}
+
+form.form-grid input,
+form.form-grid select,
+form.form-grid textarea {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  background: #ffffff;
+  color: var(--text);
+}
+
+form.form-grid select option {
+  background: #ffffff;
+  color: var(--text);
+}
+
+form.form-grid input:disabled {
+  background: var(--bg);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+form.form-grid input:focus,
+form.form-grid select:focus,
+form.form-grid textarea:focus {
+  outline: none;
+  border-color: var(--teal);
+}
+
+form.form-grid button {
+  grid-column: 1 / -1;
+  padding: 11px;
+  background: var(--teal);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+form.form-grid button:hover { background: var(--teal-dark); }
+
+form.form-grid button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.mensaje-form {
+  margin-top: 12px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.mensaje-form.ok { color: var(--success); }
+.mensaje-form.error { color: var(--danger); }
+
+.btn-nuevo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  background: var(--teal);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-nuevo:hover { background: var(--teal-dark); }
+.btn-nuevo:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Boton secundario: acciones que no son la principal del formulario (ej. Cancelar) */
+form.form-grid button.btn-secundario {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+form.form-grid button.btn-secundario:hover {
+  background: var(--bg);
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+.btn-editar {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  background: var(--panel-bg);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-editar:hover {
+  background: var(--teal-light);
+  color: var(--teal-dark);
+  border-color: var(--teal);
+}
+
+.empty-state {
+  padding: 30px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* Login */
+.login-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+}
+
+.login-card {
+  background: var(--panel-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 32px;
+  width: 100%;
+  max-width: 360px;
+}
+
+.login-card img {
+  display: block;
+  max-width: 160px;
+  margin: 0 auto 24px;
+}
+
+.login-card h1 {
+  font-size: 18px;
+  text-align: center;
+  margin: 0 0 24px;
+  color: var(--text);
+}
+
+.login-card label {
+  display: block;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.login-card .campo { margin-bottom: 16px; }
+
+.login-card input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.login-card input:focus {
+  outline: none;
+  border-color: var(--teal);
+}
+
+.login-card button {
+  width: 100%;
+  padding: 11px;
+  background: var(--teal);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.login-card button:hover { background: var(--teal-dark); }
+.login-card button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+#login-error {
+  color: var(--danger);
+  font-size: 13px;
+  margin-top: 14px;
+  text-align: center;
+  min-height: 16px;
+}
+
+.login-msg {
+  font-size: 13px;
+  margin-top: 14px;
+  text-align: center;
+}
+
+.login-msg--ok { color: var(--success); }
+
+.login-links {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.login-links a {
+  color: var(--teal);
+  text-decoration: none;
+}
+
+.login-links a:hover { text-decoration: underline; }
+
+/* Modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 23, 0.45);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 20px;
+  overflow-y: auto;
+  z-index: 100;
+}
+
+.modal-content {
+  background: var(--panel-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  width: 100%;
+  max-width: 640px;
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  /* Sin esto, el header (sticky, z-index:auto) queda al mismo nivel de
+     apilado que los elementos "position: relative" del formulario (ej. el
+     combo de materiales) y, al hacer scroll, el que vaya despues en el DOM
+     se pinta encima tapando el titulo — sin importar que el header sea sticky. */
+  z-index: 1;
+  background: var(--panel-bg);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--text);
+}
+
+.modal-cerrar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.modal-cerrar:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.modal-body {
+  padding: 20px 22px;
+}
+
+.modal-body .panel--form {
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
+  max-width: none;
+}
+
+/* Dialogo de confirmacion (ej. "seguro que quieres salir") que aparece
+   encima de un modal con datos sin guardar. Capa aparte con su propio
+   z-index, para quedar por encima del modal-content en vez de reemplazarlo. */
+.alert-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 23, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 200;
+  animation: alert-overlay-in 0.12s ease-out;
+}
+
+@keyframes alert-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.alert-dialog {
+  background: var(--panel-bg);
+  border-radius: var(--radius);
+  box-shadow: 0 20px 25px -5px rgba(15, 23, 23, 0.15), 0 8px 10px -6px rgba(15, 23, 23, 0.1);
+  width: 100%;
+  max-width: 400px;
+  padding: 22px;
+  animation: alert-dialog-in 0.15s ease-out;
+}
+
+@keyframes alert-dialog-in {
+  from { opacity: 0; transform: scale(0.96) translateY(4px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.alert-dialog__titulo {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.alert-dialog__descripcion {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.alert-dialog__acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.alert-dialog__cancelar,
+.alert-dialog__confirmar {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.alert-dialog__cancelar {
+  background: var(--panel-bg);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.alert-dialog__cancelar:hover {
+  background: var(--bg);
+}
+
+.alert-dialog__confirmar {
+  background: var(--danger);
+  color: #ffffff;
+}
+
+.alert-dialog__confirmar:hover {
+  background: #a53225;
+}
+
+@media (max-width: 420px) {
+  .alert-dialog__acciones {
+    flex-direction: column-reverse;
+  }
+  .alert-dialog__cancelar,
+  .alert-dialog__confirmar {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+.loading-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* Responsive: en mobile/tablet el sidebar se vuelve un drawer que se abre
+   con el boton hamburguesa, en vez de una fila horizontal con scroll
+   (con 8 items en el nav, el scroll horizontal escondia la mitad sin avisar). */
+@media (max-width: 860px) {
+  .app { flex-direction: column; }
+
+  .btn-menu { display: flex; }
+
+  .topbar__titulo-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 260px;
+    max-width: 82vw;
+    height: 100vh;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    z-index: 50;
+    box-shadow: var(--shadow);
+  }
+
+  .sidebar.sidebar--abierto {
+    transform: translateX(0);
+  }
+
+  .sidebar__backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 23, 0.4);
+    z-index: 40;
+  }
+
+  .topbar { flex-direction: column; align-items: flex-start; }
+  .topbar__acciones { width: 100%; }
+  .topbar__search { flex: 1; min-width: 0; }
+  .topbar__search input { width: 100%; }
+  form.form-grid { grid-template-columns: 1fr; }
+  .item-fila { grid-template-columns: 1fr; }
+}
+
+/* En pantallas muy angostas, anclar el panel al borde derecho del boton
+   (que suele quedar pegado al borde de la pantalla) lo saca del viewport.
+   Centrado respecto al boton se mantiene siempre dentro, sin importar
+   donde quede la campanita. */
+@media (max-width: 420px) {
+  .notif-bell__panel {
+    right: auto;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}
+
+/* Solicitudes de salida: items multiples */
+.items-solicitud {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.item-fila {
+  display: grid;
+  grid-template-columns: 2fr 1fr auto;
+  gap: 10px;
+  align-items: end;
+  padding: 10px;
+  background: var(--bg);
+  border-radius: 8px;
+}
+
+.btn-quitar-item {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: none;
+  border-radius: 8px;
+  padding: 9px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.btn-quitar-item:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-agregar-item {
+  background: transparent;
+  color: var(--teal-dark);
+  border: 1px dashed var(--teal);
+  border-radius: 8px;
+  padding: 9px 12px;
+  cursor: pointer;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.aviso-salidas {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  background: var(--teal-light);
+  color: var(--teal-dark);
+  border-radius: 8px;
+  font-size: 13.5px;
+}
+
+.aviso-salidas a {
+  color: var(--teal-dark);
+  font-weight: 700;
+}
+
+.acciones-solicitud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.btn-aprobar,
+.btn-rechazar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-aprobar { background: var(--success-bg); color: var(--success); }
+.btn-rechazar { background: var(--danger-bg); color: var(--danger); }
+
+.btn-reenviar {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  background: var(--panel-bg);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* Version solo-icono (sin texto) de los botones de accion de una fila --
+   usada en tablas con muchas columnas (ej. Solicitudes de salida) para que
+   quepan Adjuntos + Acciones sin forzar scroll horizontal. El titulo queda
+   como tooltip nativo del navegador en vez del texto visible. */
+.btn-icono {
+  padding: 6px;
+  gap: 0;
+}
+
+/* Version mas angosta (sin quitar el texto) de los botones de accion --
+   para columnas de Acciones donde el nombre de la accion debe seguir
+   visible, pero con varias acciones por fila hay que ahorrar espacio. */
+.btn-compacto {
+  padding: 4px 6px;
+  gap: 3px;
+  font-size: 11px;
+}
+
+.btn-reenviar:hover {
+  background: var(--teal-light);
+  color: var(--teal-dark);
+  border-color: var(--teal);
+}
+
+.btn-aprobar:disabled,
+.btn-rechazar:disabled,
+.btn-reenviar:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.motivo-rechazo {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.stock-aviso {
+  margin: -6px 0 0 2px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.stock-aviso.insuficiente {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.timeline-solicitud {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 220px;
+  margin-bottom: 16px;
+}
+
+.timeline-item {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.timeline-item strong {
+  color: var(--text);
+}
+
+.timeline-item__fecha {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.timeline-item.timeline-rechazada strong { color: var(--danger); }
+.timeline-item.timeline-aprobada strong { color: var(--success); }
+.timeline-item.timeline-reenviada strong { color: var(--teal-dark); }
+.timeline-item.timeline-lista strong { color: var(--teal-dark); }
+.timeline-item.timeline-cancelada strong { color: var(--text-muted); }
+.timeline-item.timeline-material_agregado strong { color: var(--teal-dark); }
+.timeline-item.timeline-rechazado strong { color: var(--danger); }
+.timeline-item.timeline-aprobado strong { color: var(--success); }
+.timeline-item.timeline-finalizado strong { color: var(--teal-dark); }
+.timeline-item.timeline-pasado_a_calidad strong { color: var(--lime-dark); }
+.timeline-item.timeline-regresado_a_cerrada strong { color: var(--text-muted); }
+.timeline-item.timeline-pasado_a_finalizado strong { color: var(--teal-dark); }
+.timeline-item.timeline-facturado strong { color: var(--success); }
+
+/* Trazabilidad: "Recorrido" del modal de detalle -- a diferencia de
+   .timeline-solicitud (historial de eventos reales, todos "pasaron"), esta
+   es una secuencia FIJA de hitos donde algunos todavia no ocurrieron -- por
+   eso lleva icono (hecho/pendiente) y linea conectora, como una timeline de
+   verdad, en vez de solo texto apilado. Clases propias (recorrido-*) para no
+   tocar .timeline-item, que ya usan Devoluciones/SolicitudesSalida. */
+.recorrido-timeline {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 16px;
+}
+
+.recorrido-paso {
+  display: flex;
+  gap: 10px;
+  position: relative;
+  padding-bottom: 16px;
+}
+
+.recorrido-paso:last-child {
+  padding-bottom: 0;
+}
+
+/* Linea conectora detras del icono -- va del centro de un icono al centro
+   del siguiente, en teal si ya se avanzo hasta aca, gris si no. */
+.recorrido-paso:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 9px;
+  top: 20px;
+  bottom: 0;
+  width: 2px;
+  background: var(--border);
+}
+
+.recorrido-paso.hecho:not(:last-child)::before {
+  background: var(--success);
+}
+
+.recorrido-paso__icono {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  background: var(--border);
+  color: var(--text-muted);
+}
+
+.recorrido-paso.hecho .recorrido-paso__icono {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.recorrido-paso__texto strong {
+  font-size: 13.5px;
+  color: var(--text);
+}
+
+.recorrido-paso.pendiente .recorrido-paso__texto strong {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.recorrido-paso__fecha {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.recorrido-paso.pendiente .recorrido-paso__fecha {
+  font-style: italic;
+}
+
+/* Modal de detalle de una solicitud de salida */
+.detalle-datos {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 18px;
+  font-size: 13.5px;
+}
+
+.detalle-datos strong {
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+.detalle-subtitulo {
+  font-size: 14px;
+  margin: 0 0 8px;
+}
+
+.detalle-items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+  margin-bottom: 18px;
+}
+
+.detalle-item-fila {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border-radius: 8px;
+  font-size: 13.5px;
+}
+
+/* Trazabilidad: facturacion (2026-09-01, en pruebas) -- lineas sueltas que el
+   coordinador arma aparte: un item de la LPU (buscado) + una cantidad, SIN
+   relacion con los materiales de la RF (esos van en su propia lista arriba,
+   de solo lectura). Fila completa (no grid angosto) para que el buscador
+   tenga espacio real y el dropdown se pueda leer -- los nombres de la LPU
+   son largos. */
+.detalle-items--facturacion {
+  overflow: visible; /* el dropdown del buscador no debe recortarse */
+  max-height: none;
+}
+
+.detalle-item-fila--facturacion {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: stretch;
+  padding: 12px;
+  border: 1px solid var(--border);
+}
+
+/* Cantidad/Subtotal/Quitar en una sola fila -- mismo lenguaje visual que
+   .item-fila (Materiales a despachar en Nueva solicitud): campos con label
+   arriba, boton "Quitar" solido en rojo suave al final. */
+.detalle-item-fila__pie {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+}
+
+.detalle-item-fila__campo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.detalle-item-fila__campo label {
+  font-weight: 600;
+}
+
+.detalle-item-fila__campo input {
+  width: 120px;
+  box-sizing: border-box;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  background: #ffffff;
+  color: var(--text);
+}
+
+.detalle-item-fila__campo input:focus {
+  outline: none;
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px var(--teal-light);
+}
+
+.detalle-item-fila__campo strong {
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 600;
+  line-height: 1.7; /* mismo alto que el input de al lado, para quedar alineados */
+}
+
+.detalle-item-fila__campo--subtotal {
+  flex: 1;
+  align-items: flex-end;
+  text-align: right;
+}
+
+/* El nombre completo del item de la LPU elegido, siempre visible debajo del
+   buscador aunque sea muy largo -- el input de arriba se trunca con "...". */
+.detalle-item-fila__lpu-elegido {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  padding: 0 2px;
+}
+
+/* El buscador de la LPU no vive dentro de un form.form-grid (ahi es donde
+   sale el "width: 100%" de los inputs normales) -- sin esto el input vuelve
+   al ancho nativo del navegador (~20 caracteres), una cajita chiquita que se
+   ve horrible sobre una fila que ocupa todo el modal. Trunca con "..." el
+   nombre elegido (puede tener 200+ caracteres) -- el nombre completo ya se
+   ve debajo. */
+.lpu-combo input {
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  background: #ffffff;
+  color: var(--text);
+}
+
+.lpu-combo input:focus {
+  outline: none;
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px var(--teal-light);
+}
+
+/* La fila de facturacion ya no es un grid angosto (ver
+   .detalle-item-fila--facturacion), el buscador ocupa toda la fila -- el
+   dropdown hereda ese mismo ancho de .combo-opciones (left:0; right:0), que
+   ya alcanza para leer nombres largos sin amontonarse. */
+.lpu-combo .combo-opciones .combo-item {
+  white-space: normal;
+  line-height: 1.4;
+}
+
+.detalle-items--facturacion + .btn-agregar-item {
+  margin-bottom: 14px;
+}
+
+.detalle-total {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  background: var(--teal-light);
+  color: var(--teal-dark);
+  border-radius: 8px;
+  font-size: 15px;
+}
+
+/* Devoluciones: fila de cada material dentro del modal de reporte/revision */
+.devolucion-item-fila {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.devolucion-item-fila__nombre {
+  font-weight: 600;
+  font-size: 13.5px;
+}
+
+.devolucion-item-fila__solicitado {
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.devolucion-item-fila__accion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.devolucion-item-fila__accion input[type="number"] {
+  width: 140px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  background: #ffffff;
+  color: var(--text);
+}
+
+.devolucion-item-fila__accion input[type="number"]:focus {
+  outline: none;
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px var(--teal-light);
+}
+
+.devolucion-item-fila__motivo {
+  margin-top: 6px;
+}
+
+.devolucion-item-fila__motivo input[type="text"] {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 10px;
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-family: inherit;
+  background: #ffffff;
+  color: var(--text);
+}
+
+.devolucion-item-fila__motivo input[type="text"]:focus {
+  outline: none;
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px var(--danger-bg);
+}
+
+.devolucion-item-fila__sobrante {
+  font-size: 12.5px;
+  color: var(--warning);
+  font-weight: 600;
+}
+
+.devolucion-item-fila__ok {
+  font-size: 12.5px;
+  color: var(--success);
+}
+
+.devolucion-item-fila__pendiente {
+  font-size: 12.5px;
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.devolucion-item-fila__meta {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.btn-disposicion {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  background: var(--panel-bg);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-disposicion.activo {
+  background: var(--success-bg);
+  color: var(--success);
+  border-color: var(--success);
+}
+
+.btn-disposicion--desecho.activo {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+/* Grupo de material: input de tags */
+.tags-input {
+  display: flex;
+  gap: 8px;
+}
+
+.tags-input input, .tags-input select { flex: 1; }
+
+.tags-lista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--teal-light);
+  color: var(--teal-dark);
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.tag-chip button {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+}
+
+/* Fila resaltada al llegar desde una notificacion */
+.fila-resaltada {
+  animation: resaltado 2.5s ease-out;
+}
+
+@keyframes resaltado {
+  0%, 40% { background: var(--teal-light); }
+  100% { background: transparent; }
+}
+
+/* Confirmacion de que el tecnico/supervisor ya vio una notificacion del ticket */
+.vistos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.visto-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+/* Aviso cuando no se puede eliminar un usuario (tiene historial) */
+.fila-aviso td {
+  padding: 0 !important;
+  border-bottom: 1px solid var(--border);
+}
+
+.aviso-bloqueo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.aviso-bloqueo > svg {
+  flex-shrink: 0;
+}
+
+.aviso-bloqueo__texto {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.aviso-bloqueo__texto strong {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.aviso-bloqueo__texto span {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.aviso-bloqueo .btn-secundario {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 7px 12px;
+  font-size: 12.5px;
+  background: var(--panel-bg);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.aviso-bloqueo .btn-secundario:hover {
+  background: var(--bg);
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+.aviso-bloqueo__cerrar {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+/* Importar desde Excel (categorias/proveedores) */
+.importar-excel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.importar-excel__subida input[type="file"] {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  font-size: 13.5px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.importar-excel__estado {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.importar-excel__resumen {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  background: var(--bg);
+  border-radius: 8px;
+}
+
+.importar-excel__conteos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag-chip--error {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.importar-excel__detalle {
+  font-size: 13px;
+}
+
+.importar-excel__detalle strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text);
+}
+
+.importar-excel__detalle ul {
+  margin: 0;
+  padding-left: 18px;
+  max-height: 160px;
+  overflow-y: auto;
+  color: var(--text-muted);
+}
+
+.importar-excel__detalle li {
+  margin-bottom: 2px;
+}
+
+.importar-excel__ok {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--success);
+  font-weight: 600;
+  font-size: 13.5px;
+}
+
+.importar-excel button[type="button"] {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  background: var(--teal);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.importar-excel button[type="button"]:hover { background: var(--teal-dark); }
+.importar-excel button[type="button"]:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.importar-excel button[type="button"].btn-secundario {
+  background: var(--panel-bg);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.importar-excel button[type="button"].btn-secundario:hover {
+  background: var(--bg);
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+.credito-app {
+  position: fixed;
+  right: 14px;
+  bottom: 10px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--panel-bg) 85%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  backdrop-filter: blur(4px);
+  pointer-events: none;
+  z-index: 5;
+}
+
+@media (max-width: 640px) {
+  .credito-app { display: none; }
+}
+
+/* Herramientas: estados fisicos, disponibilidad y prestamos */
+.badge.nuevo { background: var(--teal-light); color: var(--teal-dark); }
+.badge.bueno { background: var(--success-bg); color: var(--success); }
+.badge.regular { background: var(--warning-bg); color: var(--warning); }
+.badge.malo { background: var(--danger-bg); color: var(--danger); }
+.badge.perdido { background: var(--danger-bg); color: var(--danger); }
+.badge.recuperado { background: var(--success-bg); color: var(--success); }
+.badge.disponible { background: var(--success-bg); color: var(--success); }
+.badge.agotada { background: var(--danger-bg); color: var(--danger); }
+.badge.prestado { background: var(--warning-bg); color: var(--warning); }
+.badge.devuelto { background: var(--success-bg); color: var(--success); }
+
+/* Etiqueta de rol junto a un nombre (selector de "a quien se presta",
+   columna "Recibe" del historial) -- texto discreto en gris, no un chip de
+   color: al lado de un nombre repetido muchas veces en una lista, un pill de
+   color se vuelve ruidoso en vez de informativo. */
+.rol-tag {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+/* Buscador de "a quien se presta" en Herramientas: input + lista filtrada */
+.selector-receptor { position: relative; }
+.selector-receptor input { width: 100%; }
+
+.selector-receptor__lista {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  z-index: 20;
+}
+
+/* Prefijado con .selector-receptor__lista para pesar mas que la regla
+   generica "form.form-grid button" (fondo teal solido de los botones de
+   enviar) -- sin esto, cada fila de la lista se veia como un boton de
+   submit en vez de un item de lista. */
+.selector-receptor__lista .selector-receptor__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 0;
+  background: none;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.selector-receptor__lista .selector-receptor__item:hover { background: var(--teal-light); }
+
+.selector-receptor__vacio {
+  padding: 10px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+/* Mini-stepper de la columna "Progreso" en Trazabilidad -- a proposito solo
+   iconos (sin texto de cada paso, eso ya esta en el titulo/tooltip y en el
+   detalle) para que la columna quede angosta y la tabla no necesite scroll
+   horizontal. */
+.progreso-rf {
+  display: flex;
+  gap: 3px;
+}
+
+.progreso-paso {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--border);
+  color: var(--text-muted);
+}
+
+.progreso-paso.hecho {
+  background: var(--success-bg);
+  color: var(--success);
+}
