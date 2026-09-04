@@ -56,7 +56,13 @@ Deno.serve(async (req) => {
       .from("perfiles")
       .update({ nombre, rol })
       .eq("id", nuevo.user!.id);
-    if (errorPerfil) return error(errorPerfil.message);
+    if (errorPerfil) {
+      // Sin esto quedaba un usuario huerfano en Auth (creado pero con el
+      // perfil por defecto sin actualizar) y reintentar con el mismo email
+      // fallaba para siempre.
+      await clienteAdmin.auth.admin.deleteUser(nuevo.user!.id);
+      return error(errorPerfil.message);
+    }
 
     return new Response(JSON.stringify({ ok: true, id: nuevo.user!.id }), {
       headers: { ...CORS, "Content-Type": "application/json" },

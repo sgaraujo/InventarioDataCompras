@@ -1,10 +1,11 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "../api/supabaseClient";
 import { subirEvidencia } from "../api/storage";
-import type { Material, Movimiento, Solicitante, TipoMovimiento } from "../api/types";
-import { money } from "../lib/labels";
+import type { Material, Solicitante, TipoMovimiento } from "../api/types";
 import { Modal } from "../components/Modal";
 import { ComboMaterial } from "../components/ComboMaterial";
+import { PanelMovimientosRecientes } from "../components/PanelMovimientosRecientes";
+import { useMovimientosRecientes } from "../hooks/useMovimientosRecientes";
 
 const FORM_VACIO = {
   material_id: "",
@@ -26,26 +27,8 @@ export function Movimientos() {
   const [mensaje, setMensaje] = useState<{ texto: string; tipo: "ok" | "error" } | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [mostrarForm, setMostrarForm] = useState(false);
-  const [recientes, setRecientes] = useState<Movimiento[]>([]);
-  const [cargandoRecientes, setCargandoRecientes] = useState(true);
-
-  async function cargarRecientes() {
-    setCargandoRecientes(true);
-    const { data } = await supabase
-      .from("movimientos")
-      .select("*, materiales(codigo, descripcion), solicitantes(nombre)")
-      .order("creado_en", { ascending: false })
-      .limit(10);
-    setRecientes(
-      (data ?? []).map((m) => ({
-        ...m,
-        material_codigo: (m.materiales as { codigo: string } | null)?.codigo ?? "—",
-        material_descripcion: (m.materiales as { descripcion: string } | null)?.descripcion ?? "—",
-        solicitante_nombre: (m.solicitantes as { nombre: string } | null)?.nombre ?? null,
-      })) as Movimiento[]
-    );
-    setCargandoRecientes(false);
-  }
+  const { movimientos: recientes, cargando: cargandoRecientes, error: errorRecientes, recargar: cargarRecientes } =
+    useMovimientosRecientes(10);
 
   async function cargarMateriales() {
     const { data } = await supabase
@@ -64,7 +47,6 @@ export function Movimientos() {
 
   useEffect(() => {
     cargarMateriales();
-    cargarRecientes();
     supabase
       .from("solicitantes")
       .select("*")
@@ -219,49 +201,7 @@ export function Movimientos() {
         </Modal>
       )}
 
-      <div className="panel">
-        <h2>Últimos movimientos</h2>
-        <div className="tabla-wrap">
-          <table className="tabla">
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Material</th>
-                <th>Tipo</th>
-                <th>Cantidad</th>
-                <th>Solicitante</th>
-              </tr>
-            </thead>
-            <tbody>
-              {cargandoRecientes ? (
-                <tr>
-                  <td colSpan={5} className="empty-state">
-                    Cargando...
-                  </td>
-                </tr>
-              ) : recientes.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="empty-state">
-                    Aún no hay movimientos registrados.
-                  </td>
-                </tr>
-              ) : (
-                recientes.map((m) => (
-                  <tr key={m.id}>
-                    <td>{new Date(m.creado_en).toLocaleString("es-CO")}</td>
-                    <td>{m.material_descripcion}</td>
-                    <td>
-                      <span className={`badge ${m.tipo}`}>{m.tipo === "entrada" ? "Entrada" : "Salida"}</span>
-                    </td>
-                    <td>{money(m.cantidad)}</td>
-                    <td>{m.solicitante_nombre || "—"}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <PanelMovimientosRecientes movimientos={recientes} cargando={cargandoRecientes} error={errorRecientes} />
     </section>
   );
 }

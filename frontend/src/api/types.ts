@@ -65,6 +65,17 @@ export interface Movimiento {
   creado_en: string;
 }
 
+// Version liviana de Movimiento para paneles de "ultimos movimientos"
+// (Dashboard, Movimientos) que no necesitan foto/adjunto/observaciones.
+export interface MovimientoReciente {
+  id: number;
+  creado_en: string;
+  tipo: TipoMovimiento;
+  cantidad: number;
+  material_descripcion: string;
+  solicitante_nombre: string | null;
+}
+
 // Resultado de la funcion RPC resumen_movimientos_mensual() -- entradas y
 // salidas totales agrupadas por mes, para el grafico del Dashboard.
 export interface ResumenMensualMovimientos {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../api/supabaseClient";
+import { mapMovimientoJoin } from "../api/movimientos";
 import type { Movimiento } from "../api/types";
 import { money } from "../lib/labels";
 import { Paginacion } from "../components/Paginacion";
@@ -11,6 +12,7 @@ const TAMANO_PAGINA = 25;
 export function Historial() {
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [filtroTipo, setFiltroTipo] = useState("");
   const [filtroDesde, setFiltroDesde] = useState("");
@@ -27,15 +29,14 @@ export function Historial() {
     if (filtroTipo) query = query.eq("tipo", filtroTipo);
     if (filtroDesde) query = query.gte("creado_en", filtroDesde);
     if (filtroHasta) query = query.lte("creado_en", `${filtroHasta}T23:59:59`);
-    const { data } = await query;
-    setMovimientos(
-      (data ?? []).map((m) => ({
-        ...m,
-        material_codigo: (m.materiales as { codigo: string } | null)?.codigo ?? "—",
-        material_descripcion: (m.materiales as { descripcion: string } | null)?.descripcion ?? "—",
-        solicitante_nombre: (m.solicitantes as { nombre: string } | null)?.nombre ?? null,
-      })) as Movimiento[]
-    );
+    const { data, error } = await query;
+    if (error) {
+      setError(error.message);
+      setMovimientos([]);
+    } else {
+      setError(null);
+      setMovimientos((data ?? []).map(mapMovimientoJoin) as Movimiento[]);
+    }
     setCargando(false);
   }
 
@@ -119,6 +120,12 @@ export function Historial() {
                 <tr>
                   <td colSpan={8} className="empty-state">
                     Cargando...
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={8} className="empty-state">
+                    No se pudieron cargar los movimientos ({error}).
                   </td>
                 </tr>
               ) : pageItems.length === 0 ? (

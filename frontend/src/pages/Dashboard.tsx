@@ -2,11 +2,18 @@ import { useEffect, useState } from "react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { supabase } from "../api/supabaseClient";
 import type { Material, Movimiento, ResumenMensualMovimientos } from "../api/types";
-import { money } from "../lib/labels";
+import { useMovimientosRecientes } from "../hooks/useMovimientosRecientes";
+import { PanelMovimientosRecientes } from "../components/PanelMovimientosRecientes";
 
 function primerDiaDelMes(): string {
   const hoy = new Date();
   return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-01`;
+}
+
+function primerDiaHaceSeisMeses(): string {
+  const hoy = new Date();
+  const fecha = new Date(hoy.getFullYear(), hoy.getMonth() - 5, 1);
+  return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, "0")}-01`;
 }
 
 function mesCorto(mes: string): string {
@@ -19,9 +26,10 @@ const COLOR = { success: "#2e8b3d", danger: "#c0392b" };
 export function Dashboard() {
   const [materiales, setMateriales] = useState<Material[]>([]);
   const [movimientosMes, setMovimientosMes] = useState<Movimiento[]>([]);
-  const [movimientosRecientes, setMovimientosRecientes] = useState<Movimiento[]>([]);
   const [resumenMensual, setResumenMensual] = useState<ResumenMensualMovimientos[]>([]);
   const [cargando, setCargando] = useState(true);
+  const { movimientos: movimientosRecientes, cargando: cargandoRecientes, error: errorRecientes } =
+    useMovimientosRecientes(8);
 
   useEffect(() => {
     setCargando(true);
@@ -33,21 +41,8 @@ export function Dashboard() {
         .gte("creado_en", primerDiaDelMes())
         .then(({ data }) => setMovimientosMes((data as Movimiento[]) ?? [])),
       supabase
-        .from("movimientos")
-        .select("*, materiales(codigo, descripcion), solicitantes(nombre)")
-        .order("creado_en", { ascending: false })
-        .limit(8)
-        .then(({ data }) =>
-          setMovimientosRecientes(
-            (data ?? []).map((m) => ({
-              ...m,
-              material_codigo: (m.materiales as { codigo: string } | null)?.codigo ?? "—",
-              material_descripcion: (m.materiales as { descripcion: string } | null)?.descripcion ?? "—",
-              solicitante_nombre: (m.solicitantes as { nombre: string } | null)?.nombre ?? null,
-            })) as Movimiento[]
-          )
-        ),
-      supabase.rpc("resumen_movimientos_mensual").then(({ data }) => setResumenMensual((data as ResumenMensualMovimientos[]) ?? [])),
+        .rpc("resumen_movimientos_mensual", { p_desde: primerDiaHaceSeisMeses() })
+        .then(({ data }) => setResumenMensual((data as ResumenMensualMovimientos[]) ?? [])),
     ]).finally(() => setCargando(false));
   }, []);
 
@@ -57,7 +52,7 @@ export function Dashboard() {
   const sinExistencias = activos.filter((m) => Number(m.stock_actual) <= 0).length;
   const conStock = activos.length - sinExistencias;
 
-  const datosMensuales = resumenMensual.slice(-6).map((r) => ({ ...r, mesLabel: mesCorto(r.mes) }));
+  const datosMensuales = resumenMensual.map((r) => ({ ...r, mesLabel: mesCorto(r.mes) }));
 
   return (
     <section className="view">
@@ -101,43 +96,7 @@ export function Dashboard() {
         </div>
       </div>
 
-      <div className="panel">
-        <h2>Últimos movimientos</h2>
-        <div className="tabla-wrap">
-          <table className="tabla">
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Material</th>
-                <th>Tipo</th>
-                <th>Cantidad</th>
-                <th>Solicitante</th>
-              </tr>
-            </thead>
-            <tbody>
-              {movimientosRecientes.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="empty-state">
-                    Aún no hay movimientos registrados.
-                  </td>
-                </tr>
-              ) : (
-                movimientosRecientes.map((m) => (
-                  <tr key={m.id}>
-                    <td>{new Date(m.creado_en).toLocaleString("es-CO")}</td>
-                    <td>{m.material_descripcion}</td>
-                    <td>
-                      <span className={`badge ${m.tipo}`}>{m.tipo === "entrada" ? "Entrada" : "Salida"}</span>
-                    </td>
-                    <td>{money(m.cantidad)}</td>
-                    <td>{m.solicitante_nombre || "—"}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <PanelMovimientosRecientes movimientos={movimientosRecientes} cargando={cargandoRecientes} error={errorRecientes} />
     </section>
   );
 }
