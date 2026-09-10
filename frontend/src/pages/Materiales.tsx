@@ -156,10 +156,32 @@ export function Materiales() {
   }
 
   const [confirmandoDesactivar, setConfirmandoDesactivar] = useState<Material | null>(null);
+  const [confirmandoEliminar, setConfirmandoEliminar] = useState<Material | null>(null);
 
   async function desactivarMaterial(m: Material) {
     setConfirmandoDesactivar(null);
     await supabase.from("materiales").update({ activo: !m.activo }).eq("id", m.id);
+    await cargarMateriales();
+  }
+
+  async function eliminarMaterial(m: Material) {
+    setConfirmandoEliminar(null);
+
+    if (m.stock_actual !== 0) {
+      setMensaje({
+        texto: `No se puede eliminar "${m.descripcion}" porque tiene stock actual (${m.stock_actual}).`,
+        tipo: "error",
+      });
+      return;
+    }
+
+    const { error } = await supabase.from("materiales").delete().eq("id", m.id);
+    if (error) {
+      setMensaje({ texto: error.message || "No se pudo eliminar el material", tipo: "error" });
+      return;
+    }
+
+    setMensaje({ texto: `Se eliminó "${m.descripcion}" correctamente.`, tipo: "ok" });
     await cargarMateriales();
   }
 
@@ -331,6 +353,15 @@ export function Materiales() {
                           <button type="button" className="btn-rechazar" onClick={() => setConfirmandoDesactivar(m)}>
                             {m.activo ? "Desactivar" : "Activar"}
                           </button>
+                          <button
+                            type="button"
+                            className="btn-rechazar"
+                            onClick={() => setConfirmandoEliminar(m)}
+                            disabled={m.stock_actual !== 0}
+                            title={m.stock_actual !== 0 ? "No se puede eliminar un material con stock" : "Eliminar material"}
+                          >
+                            Eliminar
+                          </button>
                         </div>
                       </td>
                     )}
@@ -357,6 +388,19 @@ export function Materiales() {
           descripcion="Los materiales inactivos no se pueden usar en nuevos movimientos."
           onConfirmar={() => desactivarMaterial(confirmandoDesactivar)}
           onCancelar={() => setConfirmandoDesactivar(null)}
+        />
+      )}
+
+      {confirmandoEliminar && (
+        <ConfirmDialog
+          titulo={`¿Eliminar "${confirmandoEliminar.descripcion}"?`}
+          descripcion={
+            confirmandoEliminar.stock_actual !== 0
+              ? "No se puede eliminar un material con stock actual."
+              : "Esta acción elimina el material y también su historial de movimientos asociados."
+          }
+          onConfirmar={() => eliminarMaterial(confirmandoEliminar)}
+          onCancelar={() => setConfirmandoEliminar(null)}
         />
       )}
     </section>
