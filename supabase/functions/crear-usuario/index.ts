@@ -50,11 +50,14 @@ Deno.serve(async (req) => {
     if (errorCrear) return error(errorCrear.message);
 
     // El trigger on_auth_user_created (ver supabase/migrations/0001_init.sql)
-    // ya inserto la fila en perfiles con rol "consulta" por defecto -- se
-    // actualiza al rol y nombre elegidos en el formulario.
+    // ya inserto la fila en perfiles con rol "consulta" e "inactivo" por
+    // defecto (ver 0005_bloquear_autoregistro.sql -- asi un auto-registro
+    // directo contra la API de Auth, sin pasar por aca, no queda con acceso).
+    // Al crear por el canal correcto (este admin autenticado) se activa de
+    // una vez, junto con el rol y nombre elegidos en el formulario.
     const { error: errorPerfil } = await clienteAdmin
       .from("perfiles")
-      .update({ nombre, rol })
+      .update({ nombre, rol, activo: true })
       .eq("id", nuevo.user!.id);
     if (errorPerfil) {
       // Sin esto quedaba un usuario huerfano en Auth (creado pero con el
