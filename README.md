@@ -2,9 +2,9 @@
 
 Sistema de control de inventario (materiales, entradas/salidas) por empresa y
 centro de costo, con backend en Supabase. El alcance real salió de la
-solicitud del cliente (ver `DESARROLLO INVENTARIO.xlsx`, con sus empresas,
-centros de costo, solicitantes y el inventario actual que ya maneja) -- no es
-un flujo de compras con aprobación, es control de existencias.
+solicitud del cliente (empresas, centros de costo, solicitantes y el
+inventario actual que ya maneja) -- no es un flujo de compras con aprobación,
+es control de existencias.
 
 Ver `GUIA_FRONTEND_NUEVO_PROYECTO.md` y `GUIA_BASE_DATOS_SUPABASE.md` para el
 detalle de arquitectura general (son la referencia de cómo se armó esto a
@@ -43,8 +43,9 @@ El esquema vive en `supabase/migrations/` (correr en orden, son idempotentes):
   Dashboard, y el bucket de Storage `evidencias` para fotos/soportes.
 
 Los datos semilla (empresas, centros de costo, solicitantes y los 41
-materiales reales con su historial de movimientos Feb-Mayo 2026) salen de
-`DESARROLLO INVENTARIO.xlsx` y ya están cargados en el proyecto de Supabase.
+materiales reales con su historial de movimientos Feb-Mayo 2026) salen del
+Excel que compartió el cliente y ya están cargados en el proyecto de Supabase
+(el archivo no vive en este repo -- tiene datos propios del cliente).
 
 ## Módulos
 
@@ -55,10 +56,14 @@ materiales reales con su historial de movimientos Feb-Mayo 2026) salen de
   solicitante, foto de evidencia, soporte documental). Admin y almacenista.
 - **Historial**: consulta y filtro de todos los movimientos, con enlaces a
   la foto/soporte de cada uno. Todos los roles (solo lectura).
+- **Usuarios** (solo admin): crear cuentas nuevas (vía Edge Function
+  `crear-usuario`, con service role solo en el servidor) y cambiar rol/estado.
 
 ## Pendiente para siguientes iteraciones
 
 - Exportar a Excel (materiales / historial).
-- Gestión de usuarios y roles desde la UI (hoy se asigna por SQL).
 - Recuperar contraseña (se quitó el flujo viejo, falta re-wirearlo con
   `supabase.auth.resetPasswordForEmail`).
+- Cerrar sesión automáticamente si un admin desactiva al usuario mientras
+  tiene una pestaña abierta (hoy solo pierde acceso a los datos vía RLS, pero
+  la UI no lo saca de inmediato).
