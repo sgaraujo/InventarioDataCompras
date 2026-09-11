@@ -177,7 +177,16 @@ export function Materiales() {
 
     const { error } = await supabase.from("materiales").delete().eq("id", m.id);
     if (error) {
-      setMensaje({ texto: error.message || "No se pudo eliminar el material", tipo: "error" });
+      // 23503 = viola la FK de movimientos.material_id (ON DELETE RESTRICT,
+      // ver supabase/migrations/0004_preservar_historial_materiales.sql) --
+      // la base nunca deja borrar un material con historial, aunque su stock
+      // actual sea 0 (el chequeo de arriba solo cubre el caso mas comun para
+      // no hacer un viaje al servidor de mas).
+      const texto =
+        error.code === "23503"
+          ? `No se puede eliminar "${m.descripcion}" porque tiene movimientos en su historial. Usa "Desactivar" en vez de eliminar.`
+          : error.message || "No se pudo eliminar el material";
+      setMensaje({ texto, tipo: "error" });
       return;
     }
 
@@ -397,7 +406,7 @@ export function Materiales() {
           descripcion={
             confirmandoEliminar.stock_actual !== 0
               ? "No se puede eliminar un material con stock actual."
-              : "Esta acción elimina el material y también su historial de movimientos asociados."
+              : "Esta acción no se puede deshacer. Solo funciona si el material nunca tuvo movimientos registrados -- si ya tiene historial, usa \"Desactivar\" en vez de esto."
           }
           onConfirmar={() => eliminarMaterial(confirmandoEliminar)}
           onCancelar={() => setConfirmandoEliminar(null)}
