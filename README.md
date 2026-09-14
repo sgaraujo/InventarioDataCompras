@@ -28,6 +28,7 @@ partir de ProyectoDatacenter).
    update public.perfiles set rol = 'admin' where id = '<tu-uuid>';
    ```
    (roles disponibles: `admin`, `almacenista`, `consulta`)
+   (roles disponibles: `admin`, `almacenista`, `consulta`)
 4. `npm run dev` y entra a http://localhost:5173/login
 
 ## Backend (Supabase)

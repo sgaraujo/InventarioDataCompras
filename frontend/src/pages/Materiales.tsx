@@ -36,6 +36,8 @@ export function Materiales() {
 
   const [form, setForm] = useState(FORM_VACIO);
   const [foto, setFoto] = useState<File | null>(null);
+  const [nuevoCentroCosto, setNuevoCentroCosto] = useState("");
+  const [creandoCentroCosto, setCreandoCentroCosto] = useState(false);
   const [mensaje, setMensaje] = useState<{ texto: string; tipo: "ok" | "error" } | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [mostrarForm, setMostrarForm] = useState(false);
@@ -96,6 +98,7 @@ export function Materiales() {
     setForm(FORM_VACIO);
     formInicialRef.current = FORM_VACIO;
     setFoto(null);
+    setNuevoCentroCosto("");
     setMensaje(null);
     setMostrarForm(true);
   }
@@ -111,6 +114,7 @@ export function Materiales() {
     setForm(datos);
     formInicialRef.current = datos;
     setFoto(null);
+    setNuevoCentroCosto("");
     setMensaje(null);
     setMostrarForm(true);
   }
@@ -119,10 +123,32 @@ export function Materiales() {
     setMostrarForm(false);
     setForm(FORM_VACIO);
     setFoto(null);
+    setNuevoCentroCosto("");
     setMensaje(null);
   }
 
   const centrosDeLaEmpresa = centrosCosto.filter((c) => String(c.empresa_id) === form.empresa_id);
+
+  // Los centros de costo no vienen pre-cargados -- se van creando uno a uno
+  // a medida que hacen falta, directo desde el formulario de material.
+  async function agregarCentroCosto() {
+    const nombre = nuevoCentroCosto.trim();
+    if (!nombre || !form.empresa_id) return;
+    setCreandoCentroCosto(true);
+    const { data, error } = await supabase
+      .from("centros_costo")
+      .insert({ empresa_id: Number(form.empresa_id), nombre })
+      .select()
+      .single();
+    setCreandoCentroCosto(false);
+    if (error) {
+      setMensaje({ texto: error.message, tipo: "error" });
+      return;
+    }
+    setCentrosCosto((prev) => [...prev, data as CentroCosto]);
+    setForm((f) => ({ ...f, centro_costo_id: String(data.id) }));
+    setNuevoCentroCosto("");
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -177,7 +203,16 @@ export function Materiales() {
 
     const { error } = await supabase.from("materiales").delete().eq("id", m.id);
     if (error) {
-      setMensaje({ texto: error.message || "No se pudo eliminar el material", tipo: "error" });
+      // 23503 = viola la FK de movimientos.material_id (ON DELETE RESTRICT,
+      // ver supabase/migrations/0004_preservar_historial_materiales.sql) --
+      // la base nunca deja borrar un material con historial, aunque su stock
+      // actual sea 0 (el chequeo de arriba solo cubre el caso mas comun para
+      // no hacer un viaje al servidor de mas).
+      const texto =
+        error.code === "23503"
+          ? `No se puede eliminar "${m.descripcion}" porque tiene movimientos en su historial. Usa "Desactivar" en vez de eliminar.`
+          : error.message || "No se pudo eliminar el material";
+      setMensaje({ texto, tipo: "error" });
       return;
     }
 
@@ -228,7 +263,11 @@ export function Materiales() {
         <Modal
           titulo={editando ? `Editar material: ${form.descripcion}` : "Nuevo material"}
           onClose={cerrarForm}
-          confirmarCierre={JSON.stringify(form) !== JSON.stringify(formInicialRef.current) || Boolean(foto)}
+          confirmarCierre={
+            JSON.stringify(form) !== JSON.stringify(formInicialRef.current) ||
+            Boolean(foto) ||
+            nuevoCentroCosto.trim() !== ""
+          }
         >
           <form className="form-grid" onSubmit={handleSubmit}>
             <div>
@@ -260,6 +299,24 @@ export function Materiales() {
                   </option>
                 ))}
               </select>
+              {form.empresa_id && (
+                <div className="tags-input" style={{ marginTop: 6 }}>
+                  <input
+                    type="text"
+                    placeholder="¿No está en la lista? Escribe el nombre y agrégalo"
+                    value={nuevoCentroCosto}
+                    onChange={(e) => setNuevoCentroCosto(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="btn-secundario"
+                    disabled={!nuevoCentroCosto.trim() || creandoCentroCosto}
+                    onClick={agregarCentroCosto}
+                  >
+                    {creandoCentroCosto ? "Agregando..." : "+ Agregar"}
+                  </button>
+                </div>
+              )}
             </div>
             <div className="full">
               <label>Descripción</label>
@@ -397,7 +454,7 @@ export function Materiales() {
           descripcion={
             confirmandoEliminar.stock_actual !== 0
               ? "No se puede eliminar un material con stock actual."
-              : "Esta acción elimina el material y también su historial de movimientos asociados."
+              : "Esta acción no se puede deshacer. Solo funciona si el material nunca tuvo movimientos registrados -- si ya tiene historial, usa \"Desactivar\" en vez de esto."
           }
           onConfirmar={() => eliminarMaterial(confirmandoEliminar)}
           onCancelar={() => setConfirmandoEliminar(null)}
