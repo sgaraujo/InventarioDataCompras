@@ -24,6 +24,7 @@ export function Movimientos() {
   const [form, setForm] = useState(FORM_VACIO);
   const [foto, setFoto] = useState<File | null>(null);
   const [adjunto, setAdjunto] = useState<File | null>(null);
+  const [actaEntrega, setActaEntrega] = useState<File | null>(null);
   const [mensaje, setMensaje] = useState<{ texto: string; tipo: "ok" | "error" } | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [mostrarForm, setMostrarForm] = useState(false);
@@ -59,6 +60,7 @@ export function Movimientos() {
     setForm({ ...FORM_VACIO, tipo });
     setFoto(null);
     setAdjunto(null);
+    setActaEntrega(null);
     setMensaje(null);
     setMostrarForm(true);
   }
@@ -68,6 +70,7 @@ export function Movimientos() {
     setForm(FORM_VACIO);
     setFoto(null);
     setAdjunto(null);
+    setActaEntrega(null);
     setMensaje(null);
   }
 
@@ -90,6 +93,7 @@ export function Movimientos() {
         foto ? subirEvidencia("movimientos", foto) : Promise.resolve(undefined),
         adjunto ? subirEvidencia("movimientos", adjunto) : Promise.resolve(undefined),
       ]);
+      const actaUrl = actaEntrega ? await subirEvidencia("movimientos", actaEntrega) : undefined;
 
       const { error } = await supabase.from("movimientos").insert({
         material_id: Number(form.material_id),
@@ -99,6 +103,7 @@ export function Movimientos() {
         observaciones: form.observaciones || null,
         ...(fotoUrl ? { foto: fotoUrl } : {}),
         ...(adjuntoUrl ? { adjunto: adjuntoUrl } : {}),
+        ...(actaUrl ? { acta_entrega: actaUrl } : {}),
       });
       if (error) throw error;
       cerrarForm();
@@ -129,7 +134,7 @@ export function Movimientos() {
         <Modal
           titulo={form.tipo === "entrada" ? "Registrar entrada de material" : "Registrar salida de material"}
           onClose={cerrarForm}
-          confirmarCierre={Boolean(form.material_id || form.cantidad || foto || adjunto)}
+          confirmarCierre={Boolean(form.material_id || form.cantidad || foto || adjunto || actaEntrega)}
         >
           <form className="form-grid" onSubmit={handleSubmit}>
             <ComboMaterial
@@ -190,6 +195,12 @@ export function Movimientos() {
                 onChange={(e) => setAdjunto(e.target.files?.[0] ?? null)}
               />
             </div>
+            {form.tipo === "salida" && (
+              <div>
+                <label>ACTA DE ENTREGA (opcional)</label>
+                <input type="file" accept="image/*" onChange={(e) => setActaEntrega(e.target.files?.[0] ?? null)} />
+              </div>
+            )}
             <button type="submit" disabled={enviando}>
               {enviando ? "Registrando..." : form.tipo === "entrada" ? "Registrar entrada" : "Registrar salida"}
             </button>

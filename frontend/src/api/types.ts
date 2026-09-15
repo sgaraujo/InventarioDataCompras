@@ -60,6 +60,7 @@ export interface Movimiento {
   solicitante_nombre: string | null;
   foto: string | null;
   adjunto: string | null;
+  acta_entrega: string | null;
   observaciones: string | null;
   registrado_por: string;
   creado_en: string;
