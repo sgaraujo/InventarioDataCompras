@@ -30,3 +30,13 @@ If you are developing a production application, we recommend enabling type-aware
 ```
 
 See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+
+## Query parameters used by the frontend
+
+The `Materiales` page supports a `stock` query parameter to filter the list by availability:
+
+- `?stock=` (empty): show all materials
+- `?stock=con`: show only materials with stock (stock_actual > 0)
+- `?stock=sin`: show only materials without stock (stock_actual <= 0)
+
+You can link directly to the filtered view, for example: `/materiales?stock=sin`.

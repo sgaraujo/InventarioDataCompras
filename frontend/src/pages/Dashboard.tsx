@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { supabase } from "../api/supabaseClient";
 import type { Material, Movimiento, ResumenMensualMovimientos } from "../api/types";
@@ -53,6 +54,7 @@ export function Dashboard() {
   const conStock = activos.length - sinExistencias;
 
   const datosMensuales = resumenMensual.map((r) => ({ ...r, mesLabel: mesCorto(r.mes) }));
+  const navigate = useNavigate();
 
   return (
     <section className="view">
@@ -65,7 +67,13 @@ export function Dashboard() {
           <span className="stat-card__label">Con existencias</span>
           <span className="stat-card__value">{conStock}</span>
         </div>
-        <div className="stat-card stat-card--danger">
+        <div
+          className="stat-card stat-card--danger"
+          role="button"
+          title="Ver materiales sin existencias"
+          style={{ cursor: "pointer" }}
+          onClick={() => navigate("/materiales?stock=sin")}
+        >
           <span className="stat-card__label">Sin existencias</span>
           <span className="stat-card__value">{sinExistencias}</span>
         </div>
