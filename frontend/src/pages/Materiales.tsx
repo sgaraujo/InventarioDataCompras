@@ -28,6 +28,7 @@ export function Materiales() {
   const [searchParams, setSearchParams] = useSearchParams();
   const q = (searchParams.get("q") ?? "").toLowerCase();
   const empresaFiltro = searchParams.get("empresa_id") ?? "";
+  const stockFiltro = searchParams.get("stock") ?? ""; // "" | "con" | "sin"
 
   const [materiales, setMateriales] = useState<Material[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
@@ -79,6 +80,8 @@ export function Materiales() {
   const materialesFiltrados = materiales.filter((m) => {
     if (empresaFiltro && String(m.empresa_id) !== empresaFiltro) return false;
     if (q && !m.descripcion.toLowerCase().includes(q) && !m.codigo.toLowerCase().includes(q)) return false;
+    if (stockFiltro === "con" && Number(m.stock_actual) <= 0) return false;
+    if (stockFiltro === "sin" && Number(m.stock_actual) > 0) return false;
     return true;
   });
 
@@ -240,6 +243,22 @@ export function Materiales() {
                 {emp.nombre}
               </option>
             ))}
+          </select>
+        </div>
+        <div>
+          <label>Existencias</label>
+          <select
+            value={stockFiltro}
+            onChange={(e) => {
+              const next = new URLSearchParams(searchParams);
+              if (e.target.value) next.set("stock", e.target.value);
+              else next.delete("stock");
+              setSearchParams(next, { replace: true });
+            }}
+          >
+            <option value="">Todas</option>
+            <option value="con">Con existencias</option>
+            <option value="sin">Sin existencias</option>
           </select>
         </div>
         <div style={{ flex: "1 1 260px" }}>
