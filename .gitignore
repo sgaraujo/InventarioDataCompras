@@ -2,7 +2,12 @@
 .env
 .env.local
 .env.*
+!**/.env.example
 
 # Node / build
 node_modules/
 dist/
+
+# Datos del cliente -- nunca deben subirse al repo (ver README)
+DESARROLLO INVENTARIO.xlsx
+*.xlsx

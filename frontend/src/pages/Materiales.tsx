@@ -208,14 +208,20 @@ export function Materiales() {
     if (error) {
       // 23503 = viola la FK de movimientos.material_id (ON DELETE RESTRICT,
       // ver supabase/migrations/0004_preservar_historial_materiales.sql) --
-      // la base nunca deja borrar un material con historial, aunque su stock
-      // actual sea 0 (el chequeo de arriba solo cubre el caso mas comun para
-      // no hacer un viaje al servidor de mas).
-      const texto =
-        error.code === "23503"
-          ? `No se puede eliminar "${m.descripcion}" porque tiene movimientos en su historial. Usa "Desactivar" en vez de eliminar.`
-          : error.message || "No se pudo eliminar el material";
-      setMensaje({ texto, tipo: "error" });
+      // la base nunca deja borrar un material con historial. En vez de solo
+      // avisar y obligar a ir a tocar otro boton, "Eliminar" cae solo a
+      // Desactivar -- el material sale de circulacion igual, pero su
+      // historial de movimientos queda intacto.
+      if (error.code === "23503") {
+        await supabase.from("materiales").update({ activo: false }).eq("id", m.id);
+        setMensaje({
+          texto: `"${m.descripcion}" tiene movimientos en su historial, así que no se puede borrar del todo -- se desactivó en su lugar (su historial sigue disponible).`,
+          tipo: "ok",
+        });
+        await cargarMateriales();
+        return;
+      }
+      setMensaje({ texto: error.message || "No se pudo eliminar el material", tipo: "error" });
       return;
     }
 
@@ -473,7 +479,7 @@ export function Materiales() {
           descripcion={
             confirmandoEliminar.stock_actual !== 0
               ? "No se puede eliminar un material con stock actual."
-              : "Esta acción no se puede deshacer. Solo funciona si el material nunca tuvo movimientos registrados -- si ya tiene historial, usa \"Desactivar\" en vez de esto."
+              : "Si el material nunca tuvo movimientos, se borra por completo (no se puede deshacer). Si ya tiene historial, en vez de eso se desactiva -- su historial de movimientos queda intacto."
           }
           onConfirmar={() => eliminarMaterial(confirmandoEliminar)}
           onCancelar={() => setConfirmandoEliminar(null)}
