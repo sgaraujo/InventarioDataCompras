@@ -143,13 +143,6 @@ export function Movimientos() {
               onSeleccionar={(id) => setForm({ ...form, material_id: id })}
             />
             <div>
-              <label>Tipo de movimiento</label>
-              <select value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value as TipoMovimiento })}>
-                <option value="entrada">Entrada</option>
-                <option value="salida">Salida</option>
-              </select>
-            </div>
-            <div>
               <label>Cantidad</label>
               <input
                 type="number"
