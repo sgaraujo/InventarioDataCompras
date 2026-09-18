@@ -18,6 +18,7 @@ const FORM_VACIO = {
   empresa_id: "",
   centro_costo_id: "",
   descripcion: "",
+  ubicacion: "",
   activo: true,
 };
 
@@ -112,6 +113,7 @@ export function Materiales() {
       empresa_id: String(m.empresa_id),
       centro_costo_id: m.centro_costo_id ? String(m.centro_costo_id) : "",
       descripcion: m.descripcion,
+      ubicacion: m.ubicacion ?? "",
       activo: m.activo,
     };
     setForm(datos);
@@ -165,6 +167,7 @@ export function Materiales() {
         empresa_id: Number(form.empresa_id),
         centro_costo_id: form.centro_costo_id ? Number(form.centro_costo_id) : null,
         descripcion: form.descripcion,
+        ubicacion: form.ubicacion.trim() || null,
         ...(fotoUrl ? { foto: fotoUrl } : {}),
         ...(editando ? { activo: form.activo } : {}),
       };
@@ -334,6 +337,15 @@ export function Materiales() {
               />
             </div>
             <div className="full">
+              <label>Ubicación</label>
+              <input
+                type="text"
+                placeholder="Ej. Bodega 2, estante B3"
+                value={form.ubicacion}
+                onChange={(e) => setForm({ ...form, ubicacion: e.target.value })}
+              />
+            </div>
+            <div className="full">
               <label>Foto del material (opcional)</label>
               <input type="file" accept="image/*" onChange={(e) => setFoto(e.target.files?.[0] ?? null)} />
             </div>
@@ -367,6 +379,7 @@ export function Materiales() {
                 <th>Descripción</th>
                 <th>Empresa</th>
                 <th>Centro de costo</th>
+                <th>Ubicación</th>
                 <th>Stock actual</th>
                 <th>Estado</th>
                 {editable && <th>Acciones</th>}
@@ -375,13 +388,13 @@ export function Materiales() {
             <tbody>
               {cargando ? (
                 <tr>
-                  <td colSpan={editable ? 8 : 7} className="empty-state">
+                  <td colSpan={editable ? 9 : 8} className="empty-state">
                     Cargando...
                   </td>
                 </tr>
               ) : pageItems.length === 0 ? (
                 <tr>
-                  <td colSpan={editable ? 8 : 7} className="empty-state">
+                  <td colSpan={editable ? 9 : 8} className="empty-state">
                     No se encontraron materiales con ese filtro.
                   </td>
                 </tr>
@@ -401,6 +414,7 @@ export function Materiales() {
                     </td>
                     <td>{m.empresa_nombre}</td>
                     <td>{m.centro_costo_nombre || "—"}</td>
+                    <td>{m.ubicacion || "—"}</td>
                     <td>{money(m.stock_actual)}</td>
                     <td>
                       <span className={`badge ${m.stock_actual > 0 ? "ok" : "sin_existencias"}`}>

@@ -41,6 +41,7 @@ export interface Material {
   centro_costo_id: number | null;
   centro_costo_nombre: string | null;
   descripcion: string;
+  ubicacion: string | null;
   stock_actual: number;
   foto: string | null;
   activo: boolean;
