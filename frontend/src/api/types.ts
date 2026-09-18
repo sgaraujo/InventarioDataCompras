@@ -51,7 +51,10 @@ export type TipoMovimiento = "entrada" | "salida";
 
 export interface Movimiento {
   id: number;
-  material_id: number;
+  // Puede ser null si el material fue eliminado despues -- el historial
+  // sigue mostrando codigo/descripcion via material_codigo/material_
+  // descripcion (resueltos por mapMovimientoJoin, con snapshot de respaldo).
+  material_id: number | null;
   material_codigo: string;
   material_descripcion: string;
   tipo: TipoMovimiento;

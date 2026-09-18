@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { supabase } from "../api/supabaseClient";
 import { subirEvidencia } from "../api/storage";
 import type { CentroCosto, Empresa, Material } from "../api/types";
-import { esAdmin, money, puedeEditar } from "../lib/labels";
+import { money, puedeEditar } from "../lib/labels";
 import { useAuth } from "../context/AuthContext";
 import { Modal } from "../components/Modal";
 import { ConfirmDialog } from "../components/ConfirmDialog";
@@ -24,7 +24,6 @@ const FORM_VACIO = {
 export function Materiales() {
   const { usuario } = useAuth();
   const editable = puedeEditar(usuario);
-  const admin = esAdmin(usuario);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const q = (searchParams.get("q") ?? "").toLowerCase();
@@ -194,63 +193,20 @@ export function Materiales() {
     await cargarMateriales();
   }
 
+  // Borra el material sin importar stock ni historial -- movimientos.
+  // material_id queda en NULL solo (ON DELETE SET NULL, ver supabase/
+  // migrations/0007_eliminar_material_conserva_historial.sql), asi que el
+  // historial de entradas/salidas nunca se pierde, aunque el material ya no
+  // exista (Historial/Dashboard usan la "foto" guardada en cada movimiento
+  // para seguir mostrando que material era).
   async function eliminarMaterial(m: Material) {
     setConfirmandoEliminar(null);
-
-    if (m.stock_actual !== 0) {
-      setMensaje({
-        texto: `No se puede eliminar "${m.descripcion}" porque tiene stock actual (${m.stock_actual}).`,
-        tipo: "error",
-      });
-      return;
-    }
-
     const { error } = await supabase.from("materiales").delete().eq("id", m.id);
     if (error) {
-      // 23503 = viola la FK de movimientos.material_id (ON DELETE RESTRICT,
-      // ver supabase/migrations/0004_preservar_historial_materiales.sql) --
-      // la base nunca deja borrar un material con historial. En vez de solo
-      // avisar y obligar a ir a tocar otro boton, "Eliminar" cae solo a
-      // Desactivar -- el material sale de circulacion igual, pero su
-      // historial de movimientos queda intacto.
-      if (error.code === "23503") {
-        await supabase.from("materiales").update({ activo: false }).eq("id", m.id);
-        setMensaje({
-          texto: `"${m.descripcion}" tiene movimientos en su historial, así que no se puede borrar del todo -- se desactivó en su lugar (su historial sigue disponible).`,
-          tipo: "ok",
-        });
-        await cargarMateriales();
-        return;
-      }
       setMensaje({ texto: error.message || "No se pudo eliminar el material", tipo: "error" });
       return;
     }
-
     setMensaje({ texto: `Se eliminó "${m.descripcion}" correctamente.`, tipo: "ok" });
-    await cargarMateriales();
-  }
-
-  const [confirmandoEliminarDefinitivo, setConfirmandoEliminarDefinitivo] = useState<Material | null>(null);
-
-  // Solo para admin -- a diferencia de eliminarMaterial() (que protege el
-  // historial cayendo a Desactivar), esto SI borra el historial de
-  // movimientos del material antes de borrarlo a el. Pensado para corregir
-  // materiales creados por error (duplicados, mal cargados), no para uso
-  // normal -- por eso el boton solo lo ve admin y el dialogo de confirmacion
-  // es explicito sobre que se pierde el historial.
-  async function eliminarDefinitivamente(m: Material) {
-    setConfirmandoEliminarDefinitivo(null);
-    const { error: errorMovimientos } = await supabase.from("movimientos").delete().eq("material_id", m.id);
-    if (errorMovimientos) {
-      setMensaje({ texto: errorMovimientos.message || "No se pudo borrar el historial del material", tipo: "error" });
-      return;
-    }
-    const { error } = await supabase.from("materiales").delete().eq("id", m.id);
-    if (error) {
-      setMensaje({ texto: error.message || "No se pudo eliminar el material", tipo: "error" });
-      return;
-    }
-    setMensaje({ texto: `Se eliminó "${m.descripcion}" y todo su historial, de forma permanente.`, tipo: "ok" });
     await cargarMateriales();
   }
 
@@ -464,21 +420,10 @@ export function Materiales() {
                             type="button"
                             className="btn-rechazar"
                             onClick={() => setConfirmandoEliminar(m)}
-                            disabled={m.stock_actual !== 0}
-                            title={m.stock_actual !== 0 ? "No se puede eliminar un material con stock" : "Eliminar material"}
+                            title="Eliminar material"
                           >
                             Eliminar
                           </button>
-                          {admin && (
-                            <button
-                              type="button"
-                              className="btn-rechazar"
-                              onClick={() => setConfirmandoEliminarDefinitivo(m)}
-                              title="Borra el material y todo su historial de movimientos, sin posibilidad de deshacer"
-                            >
-                              Eliminar definitivamente
-                            </button>
-                          )}
                         </div>
                       </td>
                     )}
@@ -511,22 +456,9 @@ export function Materiales() {
       {confirmandoEliminar && (
         <ConfirmDialog
           titulo={`¿Eliminar "${confirmandoEliminar.descripcion}"?`}
-          descripcion={
-            confirmandoEliminar.stock_actual !== 0
-              ? "No se puede eliminar un material con stock actual."
-              : "Si el material nunca tuvo movimientos, se borra por completo (no se puede deshacer). Si ya tiene historial, en vez de eso se desactiva -- su historial de movimientos queda intacto."
-          }
+          descripcion="Esta acción no se puede deshacer. Su historial de movimientos (entradas, salidas, fotos, soportes) no se borra -- sigue disponible en Historial."
           onConfirmar={() => eliminarMaterial(confirmandoEliminar)}
           onCancelar={() => setConfirmandoEliminar(null)}
-        />
-      )}
-
-      {confirmandoEliminarDefinitivo && (
-        <ConfirmDialog
-          titulo={`¿Eliminar "${confirmandoEliminarDefinitivo.descripcion}" definitivamente?`}
-          descripcion="Esto borra el material Y todo su historial de movimientos (entradas, salidas, fotos, soportes). No hay forma de deshacerlo ni de recuperar esos datos. Úsalo solo para corregir materiales creados por error."
-          onConfirmar={() => eliminarDefinitivamente(confirmandoEliminarDefinitivo)}
-          onCancelar={() => setConfirmandoEliminarDefinitivo(null)}
         />
       )}
     </section>

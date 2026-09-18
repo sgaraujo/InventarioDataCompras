@@ -16,7 +16,9 @@ export function useMovimientosRecientes(limite: number) {
     setCargando(true);
     const { data, error } = await supabase
       .from("movimientos")
-      .select("id, creado_en, tipo, cantidad, materiales(descripcion), solicitantes(nombre)")
+      .select(
+        "id, creado_en, tipo, cantidad, material_descripcion_snapshot, materiales(descripcion), solicitantes(nombre)"
+      )
       .order("creado_en", { ascending: false })
       .limit(limite);
 
