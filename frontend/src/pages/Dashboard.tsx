@@ -25,6 +25,7 @@ function mesCorto(mes: string): string {
 const COLOR = { success: "#2e8b3d", danger: "#c0392b" };
 
 export function Dashboard() {
+  const navigate = useNavigate();
   const [materiales, setMateriales] = useState<Material[]>([]);
   const [movimientosMes, setMovimientosMes] = useState<Movimiento[]>([]);
   const [resumenMensual, setResumenMensual] = useState<ResumenMensualMovimientos[]>([]);
@@ -54,7 +55,6 @@ export function Dashboard() {
   const conStock = activos.length - sinExistencias;
 
   const datosMensuales = resumenMensual.map((r) => ({ ...r, mesLabel: mesCorto(r.mes) }));
-  const navigate = useNavigate();
 
   return (
     <section className="view">
