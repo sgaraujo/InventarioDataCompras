@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { supabase } from "../api/supabaseClient";
 import { subirEvidencia } from "../api/storage";
 import type { CentroCosto, Empresa, Material } from "../api/types";
-import { money, puedeEditar } from "../lib/labels";
+import { esAdmin, money, puedeEditar } from "../lib/labels";
 import { useAuth } from "../context/AuthContext";
 import { Modal } from "../components/Modal";
 import { ConfirmDialog } from "../components/ConfirmDialog";
@@ -24,6 +24,7 @@ const FORM_VACIO = {
 export function Materiales() {
   const { usuario } = useAuth();
   const editable = puedeEditar(usuario);
+  const admin = esAdmin(usuario);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const q = (searchParams.get("q") ?? "").toLowerCase();
@@ -226,6 +227,30 @@ export function Materiales() {
     }
 
     setMensaje({ texto: `Se eliminó "${m.descripcion}" correctamente.`, tipo: "ok" });
+    await cargarMateriales();
+  }
+
+  const [confirmandoEliminarDefinitivo, setConfirmandoEliminarDefinitivo] = useState<Material | null>(null);
+
+  // Solo para admin -- a diferencia de eliminarMaterial() (que protege el
+  // historial cayendo a Desactivar), esto SI borra el historial de
+  // movimientos del material antes de borrarlo a el. Pensado para corregir
+  // materiales creados por error (duplicados, mal cargados), no para uso
+  // normal -- por eso el boton solo lo ve admin y el dialogo de confirmacion
+  // es explicito sobre que se pierde el historial.
+  async function eliminarDefinitivamente(m: Material) {
+    setConfirmandoEliminarDefinitivo(null);
+    const { error: errorMovimientos } = await supabase.from("movimientos").delete().eq("material_id", m.id);
+    if (errorMovimientos) {
+      setMensaje({ texto: errorMovimientos.message || "No se pudo borrar el historial del material", tipo: "error" });
+      return;
+    }
+    const { error } = await supabase.from("materiales").delete().eq("id", m.id);
+    if (error) {
+      setMensaje({ texto: error.message || "No se pudo eliminar el material", tipo: "error" });
+      return;
+    }
+    setMensaje({ texto: `Se eliminó "${m.descripcion}" y todo su historial, de forma permanente.`, tipo: "ok" });
     await cargarMateriales();
   }
 
@@ -444,6 +469,16 @@ export function Materiales() {
                           >
                             Eliminar
                           </button>
+                          {admin && (
+                            <button
+                              type="button"
+                              className="btn-rechazar"
+                              onClick={() => setConfirmandoEliminarDefinitivo(m)}
+                              title="Borra el material y todo su historial de movimientos, sin posibilidad de deshacer"
+                            >
+                              Eliminar definitivamente
+                            </button>
+                          )}
                         </div>
                       </td>
                     )}
@@ -483,6 +518,15 @@ export function Materiales() {
           }
           onConfirmar={() => eliminarMaterial(confirmandoEliminar)}
           onCancelar={() => setConfirmandoEliminar(null)}
+        />
+      )}
+
+      {confirmandoEliminarDefinitivo && (
+        <ConfirmDialog
+          titulo={`¿Eliminar "${confirmandoEliminarDefinitivo.descripcion}" definitivamente?`}
+          descripcion="Esto borra el material Y todo su historial de movimientos (entradas, salidas, fotos, soportes). No hay forma de deshacerlo ni de recuperar esos datos. Úsalo solo para corregir materiales creados por error."
+          onConfirmar={() => eliminarDefinitivamente(confirmandoEliminarDefinitivo)}
+          onCancelar={() => setConfirmandoEliminarDefinitivo(null)}
         />
       )}
     </section>
