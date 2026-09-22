@@ -51,6 +51,7 @@ export function Materiales() {
   const [nuevaRefCodigo, setNuevaRefCodigo] = useState("");
   const [nuevaRefUbicacion, setNuevaRefUbicacion] = useState("");
   const [verReferenciasDe, setVerReferenciasDe] = useState<Material | null>(null);
+  const [fotoAmpliada, setFotoAmpliada] = useState<{ url: string; nombre: string } | null>(null);
   const [referenciasEstado, setReferenciasEstado] = useState<MaterialReferenciaEstado[]>([]);
   const [cargandoReferenciasEstado, setCargandoReferenciasEstado] = useState(false);
   const [mensaje, setMensaje] = useState<{ texto: string; tipo: "ok" | "error" } | null>(null);
@@ -542,7 +543,18 @@ export function Materiales() {
                   <tr key={m.id}>
                     <td>
                       {m.foto ? (
-                        <img src={m.foto} alt={m.descripcion} style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 6 }} />
+                        <button
+                          type="button"
+                          onClick={() => setFotoAmpliada({ url: m.foto!, nombre: m.descripcion })}
+                          title="Ver foto"
+                          style={{ border: "none", background: "none", padding: 0, cursor: "pointer" }}
+                        >
+                          <img
+                            src={m.foto}
+                            alt={m.descripcion}
+                            style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 6 }}
+                          />
+                        </button>
                       ) : (
                         <ImageOff size={18} color="var(--text-muted)" />
                       )}
@@ -663,6 +675,16 @@ export function Materiales() {
               </tbody>
             </table>
           </div>
+        </Modal>
+      )}
+
+      {fotoAmpliada && (
+        <Modal titulo={fotoAmpliada.nombre} onClose={() => setFotoAmpliada(null)}>
+          <img
+            src={fotoAmpliada.url}
+            alt={fotoAmpliada.nombre}
+            style={{ width: "100%", maxHeight: "70vh", objectFit: "contain", borderRadius: 8 }}
+          />
         </Modal>
       )}
     </section>
