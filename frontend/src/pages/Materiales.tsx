@@ -2,14 +2,14 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "../api/supabaseClient";
 import { subirEvidencia } from "../api/storage";
-import type { CentroCosto, Empresa, Material } from "../api/types";
+import type { CentroCosto, Empresa, Material, MaterialReferenciaEstado } from "../api/types";
 import { money, puedeEditar } from "../lib/labels";
 import { useAuth } from "../context/AuthContext";
 import { Modal } from "../components/Modal";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Paginacion } from "../components/Paginacion";
 import { usePaginacion } from "../hooks/usePaginacion";
-import { Pencil, ImageOff } from "lucide-react";
+import { Pencil, ImageOff, Layers } from "lucide-react";
 
 const TAMANO_PAGINA = 25;
 
@@ -19,8 +19,15 @@ const FORM_VACIO = {
   centro_costo_id: "",
   descripcion: "",
   ubicacion: "",
+  maneja_referencias: false,
   activo: true,
 };
+
+interface ReferenciaForm {
+  id?: number;
+  codigo: string;
+  ubicacion: string;
+}
 
 export function Materiales() {
   const { usuario } = useAuth();
@@ -40,6 +47,12 @@ export function Materiales() {
   const [foto, setFoto] = useState<File | null>(null);
   const [nuevoCentroCosto, setNuevoCentroCosto] = useState("");
   const [creandoCentroCosto, setCreandoCentroCosto] = useState(false);
+  const [referencias, setReferencias] = useState<ReferenciaForm[]>([]);
+  const [nuevaRefCodigo, setNuevaRefCodigo] = useState("");
+  const [nuevaRefUbicacion, setNuevaRefUbicacion] = useState("");
+  const [verReferenciasDe, setVerReferenciasDe] = useState<Material | null>(null);
+  const [referenciasEstado, setReferenciasEstado] = useState<MaterialReferenciaEstado[]>([]);
+  const [cargandoReferenciasEstado, setCargandoReferenciasEstado] = useState(false);
   const [mensaje, setMensaje] = useState<{ texto: string; tipo: "ok" | "error" } | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [mostrarForm, setMostrarForm] = useState(false);
@@ -103,25 +116,42 @@ export function Materiales() {
     formInicialRef.current = FORM_VACIO;
     setFoto(null);
     setNuevoCentroCosto("");
+    setReferencias([]);
+    setNuevaRefCodigo("");
+    setNuevaRefUbicacion("");
     setMensaje(null);
     setMostrarForm(true);
   }
 
-  function editar(m: Material) {
+  async function editar(m: Material) {
     const datos = {
       id: m.id,
       empresa_id: String(m.empresa_id),
       centro_costo_id: m.centro_costo_id ? String(m.centro_costo_id) : "",
       descripcion: m.descripcion,
       ubicacion: m.ubicacion ?? "",
+      maneja_referencias: m.maneja_referencias,
       activo: m.activo,
     };
     setForm(datos);
     formInicialRef.current = datos;
     setFoto(null);
     setNuevoCentroCosto("");
+    setNuevaRefCodigo("");
+    setNuevaRefUbicacion("");
     setMensaje(null);
     setMostrarForm(true);
+
+    if (m.maneja_referencias) {
+      const { data } = await supabase
+        .from("material_referencias")
+        .select("id, codigo, ubicacion")
+        .eq("material_id", m.id)
+        .order("codigo");
+      setReferencias((data as ReferenciaForm[]) ?? []);
+    } else {
+      setReferencias([]);
+    }
   }
 
   function cerrarForm() {
@@ -129,7 +159,29 @@ export function Materiales() {
     setForm(FORM_VACIO);
     setFoto(null);
     setNuevoCentroCosto("");
+    setReferencias([]);
+    setNuevaRefCodigo("");
+    setNuevaRefUbicacion("");
     setMensaje(null);
+  }
+
+  function agregarReferencia() {
+    const codigo = nuevaRefCodigo.trim();
+    if (!codigo) return;
+    if (referencias.some((r) => r.codigo.toLowerCase() === codigo.toLowerCase())) {
+      setMensaje({ texto: `La referencia "${codigo}" ya está en la lista.`, tipo: "error" });
+      return;
+    }
+    setReferencias((prev) => [...prev, { codigo, ubicacion: nuevaRefUbicacion.trim() }]);
+    setNuevaRefCodigo("");
+    setNuevaRefUbicacion("");
+  }
+
+  // Solo se pueden quitar de la lista las referencias que todavia no se han
+  // guardado (sin id) -- una vez guardada, borrarla es otra decision (podria
+  // tener movimientos encima) y no la maneja este formulario.
+  function quitarReferencia(index: number) {
+    setReferencias((prev) => prev.filter((_, i) => i !== index));
   }
 
   const centrosDeLaEmpresa = centrosCosto.filter((c) => String(c.empresa_id) === form.empresa_id);
@@ -168,17 +220,38 @@ export function Materiales() {
         centro_costo_id: form.centro_costo_id ? Number(form.centro_costo_id) : null,
         descripcion: form.descripcion,
         ubicacion: form.ubicacion.trim() || null,
+        maneja_referencias: form.maneja_referencias,
         ...(fotoUrl ? { foto: fotoUrl } : {}),
         ...(editando ? { activo: form.activo } : {}),
       };
 
-      const { error } = editando
-        ? await supabase.from("materiales").update(cuerpo).eq("id", form.id!)
-        : await supabase.from("materiales").insert(cuerpo);
+      let materialId = form.id;
+      if (editando) {
+        const { error } = await supabase.from("materiales").update(cuerpo).eq("id", form.id!);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase.from("materiales").insert(cuerpo).select("id").single();
+        if (error) throw error;
+        materialId = data.id;
+      }
 
-      if (error) throw error;
+      // Solo las referencias nuevas (sin id todavia) hay que guardarlas --
+      // las que ya venian de la base (editar) no se tocan aca.
+      const nuevas = referencias.filter((r) => !r.id);
+      if (form.maneja_referencias && nuevas.length > 0) {
+        const { error: errorRefs } = await supabase.from("material_referencias").insert(
+          nuevas.map((r) => ({
+            material_id: materialId,
+            codigo: r.codigo,
+            ubicacion: r.ubicacion || null,
+          }))
+        );
+        if (errorRefs) throw errorRefs;
+      }
+
       setMostrarForm(false);
       setForm(FORM_VACIO);
+      setReferencias([]);
       await cargarMateriales();
     } catch (err) {
       setMensaje({ texto: err instanceof Error ? err.message : "Error al guardar el material", tipo: "error" });
@@ -211,6 +284,18 @@ export function Materiales() {
     }
     setMensaje({ texto: `Se eliminó "${m.descripcion}" correctamente.`, tipo: "ok" });
     await cargarMateriales();
+  }
+
+  async function verReferencias(m: Material) {
+    setVerReferenciasDe(m);
+    setCargandoReferenciasEstado(true);
+    const { data } = await supabase
+      .from("material_referencias_estado")
+      .select("*")
+      .eq("material_id", m.id)
+      .order("codigo");
+    setReferenciasEstado((data as MaterialReferenciaEstado[]) ?? []);
+    setCargandoReferenciasEstado(false);
   }
 
   return (
@@ -275,7 +360,10 @@ export function Materiales() {
           confirmarCierre={
             JSON.stringify(form) !== JSON.stringify(formInicialRef.current) ||
             Boolean(foto) ||
-            nuevoCentroCosto.trim() !== ""
+            nuevoCentroCosto.trim() !== "" ||
+            referencias.some((r) => !r.id) ||
+            nuevaRefCodigo.trim() !== "" ||
+            nuevaRefUbicacion.trim() !== ""
           }
         >
           <form className="form-grid" onSubmit={handleSubmit}>
@@ -346,6 +434,57 @@ export function Materiales() {
               />
             </div>
             <div className="full">
+              <div className="checkbox-campo">
+                <input
+                  type="checkbox"
+                  id="maneja-referencias"
+                  checked={form.maneja_referencias}
+                  onChange={(e) => setForm({ ...form, maneja_referencias: e.target.checked })}
+                />
+                <label htmlFor="maneja-referencias" style={{ marginBottom: 0 }}>
+                  Este material agrupa varias referencias/unidades
+                </label>
+              </div>
+              {form.maneja_referencias && (
+                <div style={{ marginTop: 10 }}>
+                  <div className="tags-input">
+                    <input
+                      type="text"
+                      placeholder="Código de referencia"
+                      value={nuevaRefCodigo}
+                      onChange={(e) => setNuevaRefCodigo(e.target.value)}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Ubicación de esta referencia (opcional)"
+                      value={nuevaRefUbicacion}
+                      onChange={(e) => setNuevaRefUbicacion(e.target.value)}
+                    />
+                    <button type="button" className="btn-secundario" disabled={!nuevaRefCodigo.trim()} onClick={agregarReferencia}>
+                      + Agregar
+                    </button>
+                  </div>
+                  {referencias.length > 0 ? (
+                    <div className="tags-lista" style={{ marginTop: 8 }}>
+                      {referencias.map((r, i) => (
+                        <span key={r.id ?? `${r.codigo}-${i}`} className="tag-chip">
+                          {r.codigo}
+                          {r.ubicacion ? ` — ${r.ubicacion}` : ""}
+                          {!r.id && (
+                            <button type="button" onClick={() => quitarReferencia(i)} aria-label={`Quitar ${r.codigo}`}>
+                              ×
+                            </button>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="stock-aviso">Todavía no has agregado ninguna referencia.</div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="full">
               <label>Foto del material (opcional)</label>
               <input type="file" accept="image/*" onChange={(e) => setFoto(e.target.files?.[0] ?? null)} />
             </div>
@@ -410,7 +549,15 @@ export function Materiales() {
                     </td>
                     <td>{m.codigo}</td>
                     <td>
-                      {m.descripcion} {!m.activo && <span className="badge sin_existencias">Inactivo</span>}
+                      {m.maneja_referencias ? (
+                        <a href="#" className="link-detalle" onClick={(e) => { e.preventDefault(); verReferencias(m); }} title="Ver referencias">
+                          {m.descripcion}
+                          <Layers size={14} />
+                        </a>
+                      ) : (
+                        m.descripcion
+                      )}{" "}
+                      {!m.activo && <span className="badge sin_existencias">Inactivo</span>}
                     </td>
                     <td>{m.empresa_nombre}</td>
                     <td>{m.centro_costo_nombre || "—"}</td>
@@ -474,6 +621,49 @@ export function Materiales() {
           onConfirmar={() => eliminarMaterial(confirmandoEliminar)}
           onCancelar={() => setConfirmandoEliminar(null)}
         />
+      )}
+
+      {verReferenciasDe && (
+        <Modal titulo={`Referencias de "${verReferenciasDe.descripcion}"`} onClose={() => setVerReferenciasDe(null)}>
+          <div className="tabla-wrap">
+            <table className="tabla">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Ubicación</th>
+                  <th>Disponible</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cargandoReferenciasEstado ? (
+                  <tr>
+                    <td colSpan={3} className="empty-state">
+                      Cargando...
+                    </td>
+                  </tr>
+                ) : referenciasEstado.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="empty-state">
+                      Este material todavía no tiene referencias cargadas.
+                    </td>
+                  </tr>
+                ) : (
+                  referenciasEstado.map((r) => (
+                    <tr key={r.id}>
+                      <td>{r.codigo}</td>
+                      <td>{r.ubicacion || "—"}</td>
+                      <td>
+                        <span className={`badge ${r.stock_disponible > 0 ? "ok" : "sin_existencias"}`}>
+                          {money(r.stock_disponible)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Modal>
       )}
     </section>
   );

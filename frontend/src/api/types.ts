@@ -42,10 +42,33 @@ export interface Material {
   centro_costo_nombre: string | null;
   descripcion: string;
   ubicacion: string | null;
+  // Si es true, este material agrupa varias unidades/referencias
+  // individuales (ver MaterialReferencia) -- cada movimiento tiene que
+  // elegir cual referencia especifica se mueve, cantidad fija en 1.
+  maneja_referencias: boolean;
   stock_actual: number;
   foto: string | null;
   activo: boolean;
   creado_en: string;
+}
+
+// Una unidad individual dentro de un material que "maneja_referencias" (ej.
+// un generador puntual con su propio codigo de activo y ubicacion, dentro
+// del material generico "DUCATI / GENERADORES 8 KVA").
+export interface MaterialReferencia {
+  id: number;
+  material_id: number;
+  codigo: string;
+  ubicacion: string | null;
+  creado_en: string;
+}
+
+// Vista material_referencias_estado -- cuanto stock tiene disponible cada
+// referencia ahora mismo (una referencia puede tener varias unidades, ej.
+// "112313" con 5 en stock), calculado igual que materiales.stock_actual
+// pero filtrado por esa referencia -- nunca se guarda a mano.
+export interface MaterialReferenciaEstado extends MaterialReferencia {
+  stock_disponible: number;
 }
 
 export type TipoMovimiento = "entrada" | "salida";
@@ -58,6 +81,10 @@ export interface Movimiento {
   material_id: number | null;
   material_codigo: string;
   material_descripcion: string;
+  // Solo si el material maneja_referencias -- misma logica de snapshot que
+  // material_codigo/material_descripcion (ver mapMovimientoJoin).
+  referencia_id: number | null;
+  referencia_codigo: string | null;
   tipo: TipoMovimiento;
   cantidad: number;
   solicitante_id: number | null;

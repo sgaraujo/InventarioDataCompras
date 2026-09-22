@@ -11,10 +11,12 @@
 // historial nunca deje de decir que material era.
 export function mapMovimientoJoin(m: any) {
   const material = m.materiales as { codigo: string; descripcion: string } | null;
+  const referencia = m.material_referencias as { codigo: string } | null;
   return {
     ...m,
     material_codigo: material?.codigo ?? m.material_codigo_snapshot ?? "—",
     material_descripcion: material?.descripcion ?? m.material_descripcion_snapshot ?? "Material eliminado",
+    referencia_codigo: referencia?.codigo ?? m.referencia_codigo_snapshot ?? null,
     solicitante_nombre: (m.solicitantes as { nombre: string } | null)?.nombre ?? null,
   };
 }

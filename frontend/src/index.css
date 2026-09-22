@@ -727,6 +727,48 @@ form.form-grid textarea {
   color: var(--text);
 }
 
+/* El selector de arriba (input/select/textarea) tambien agarra los
+   checkbox -- sin esto un <input type="checkbox"> queda estirado al 100% del
+   ancho, con el padding/borde de un input de texto, en vez de su tamaño
+   normal. */
+form.form-grid input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border-radius: 4px;
+  accent-color: var(--teal);
+  flex: none;
+}
+
+.checkbox-campo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkbox-campo label {
+  margin: 0;
+}
+
+.link-detalle {
+  color: inherit;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.link-detalle:hover {
+  text-decoration: underline solid;
+}
+
+.link-detalle svg {
+  flex: none;
+  color: var(--text-muted);
+}
+
 form.form-grid select option {
   background: #ffffff;
   color: var(--text);

@@ -23,7 +23,7 @@ export function Historial() {
     setCargando(true);
     let query = supabase
       .from("movimientos")
-      .select("*, materiales(codigo, descripcion), solicitantes(nombre)")
+      .select("*, materiales(codigo, descripcion), material_referencias(codigo), solicitantes(nombre)")
       .order("creado_en", { ascending: false })
       .limit(500);
     if (filtroTipo) query = query.eq("tipo", filtroTipo);
@@ -51,6 +51,7 @@ export function Historial() {
     return (
       m.material_descripcion.toLowerCase().includes(t) ||
       m.material_codigo.toLowerCase().includes(t) ||
+      (m.referencia_codigo ?? "").toLowerCase().includes(t) ||
       (m.solicitante_nombre ?? "").toLowerCase().includes(t)
     );
   });
@@ -108,6 +109,7 @@ export function Historial() {
                 <th>Fecha</th>
                 <th>Código</th>
                 <th>Material</th>
+                <th>Referencia</th>
                 <th>Tipo</th>
                 <th>Cantidad</th>
                 <th>Solicitante</th>
@@ -118,19 +120,19 @@ export function Historial() {
             <tbody>
               {cargando ? (
                 <tr>
-                  <td colSpan={8} className="empty-state">
+                  <td colSpan={9} className="empty-state">
                     Cargando...
                   </td>
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={8} className="empty-state">
+                  <td colSpan={9} className="empty-state">
                     No se pudieron cargar los movimientos ({error}).
                   </td>
                 </tr>
               ) : pageItems.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="empty-state">
+                  <td colSpan={9} className="empty-state">
                     No hay movimientos con ese filtro.
                   </td>
                 </tr>
@@ -140,6 +142,7 @@ export function Historial() {
                     <td>{new Date(m.creado_en).toLocaleString("es-CO")}</td>
                     <td>{m.material_codigo}</td>
                     <td>{m.material_descripcion}</td>
+                    <td>{m.referencia_codigo || "—"}</td>
                     <td>
                       <span className={`badge ${m.tipo}`}>{m.tipo === "entrada" ? "Entrada" : "Salida"}</span>
                     </td>
