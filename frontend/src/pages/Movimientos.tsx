@@ -33,6 +33,8 @@ export function Movimientos() {
     useMovimientosRecientes(10);
   const [referenciasDelMaterial, setReferenciasDelMaterial] = useState<MaterialReferenciaEstado[]>([]);
   const [cargandoReferencias, setCargandoReferencias] = useState(false);
+  const [nuevoSolicitante, setNuevoSolicitante] = useState("");
+  const [creandoSolicitante, setCreandoSolicitante] = useState(false);
 
   async function cargarMateriales() {
     const { data } = await supabase
@@ -64,8 +66,28 @@ export function Movimientos() {
     setFoto(null);
     setAdjunto(null);
     setActaEntrega(null);
+    setNuevoSolicitante("");
     setMensaje(null);
     setMostrarForm(true);
+  }
+
+  // Mismo patron que agregar un centro de costo desde Materiales -- se puede
+  // dar de alta un solicitante nuevo sin salir del formulario. La lista es
+  // compartida entre Entrada y Salida (una sola tabla), asi que agregarlo
+  // aca ya lo deja disponible en las dos.
+  async function agregarSolicitante() {
+    const nombre = nuevoSolicitante.trim();
+    if (!nombre) return;
+    setCreandoSolicitante(true);
+    const { data, error } = await supabase.from("solicitantes").insert({ nombre }).select().single();
+    setCreandoSolicitante(false);
+    if (error) {
+      setMensaje({ texto: error.message, tipo: "error" });
+      return;
+    }
+    setSolicitantes((prev) => [...prev, data as Solicitante].sort((a, b) => a.nombre.localeCompare(b.nombre)));
+    setForm((f) => ({ ...f, solicitante_id: String(data.id) }));
+    setNuevoSolicitante("");
   }
 
   function cerrarForm() {
@@ -75,6 +97,7 @@ export function Movimientos() {
     setAdjunto(null);
     setActaEntrega(null);
     setReferenciasDelMaterial([]);
+    setNuevoSolicitante("");
     setMensaje(null);
   }
 
@@ -177,7 +200,9 @@ export function Movimientos() {
         <Modal
           titulo={form.tipo === "entrada" ? "Registrar entrada de material" : "Registrar salida de material"}
           onClose={cerrarForm}
-          confirmarCierre={Boolean(form.material_id || form.cantidad || foto || adjunto || actaEntrega)}
+          confirmarCierre={Boolean(
+            form.material_id || form.cantidad || foto || adjunto || actaEntrega || nuevoSolicitante.trim()
+          )}
         >
           <form className="form-grid" onSubmit={handleSubmit}>
             <ComboMaterial materiales={materiales} materialId={form.material_id} onSeleccionar={seleccionarMaterial} />
@@ -243,6 +268,22 @@ export function Movimientos() {
                   </option>
                 ))}
               </select>
+              <div className="tags-input" style={{ marginTop: 6 }}>
+                <input
+                  type="text"
+                  placeholder="¿No está en la lista? Escribe el nombre y agrégalo"
+                  value={nuevoSolicitante}
+                  onChange={(e) => setNuevoSolicitante(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="btn-secundario"
+                  disabled={!nuevoSolicitante.trim() || creandoSolicitante}
+                  onClick={agregarSolicitante}
+                >
+                  {creandoSolicitante ? "Agregando..." : "+ Agregar"}
+                </button>
+              </div>
             </div>
             <div className="full">
               <label>Observaciones</label>
