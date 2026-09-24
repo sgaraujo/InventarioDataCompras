@@ -443,7 +443,7 @@ export function Materiales() {
                   onChange={(e) => setForm({ ...form, maneja_referencias: e.target.checked })}
                 />
                 <label htmlFor="maneja-referencias" style={{ marginBottom: 0 }}>
-                  Este material agrupa varias referencias/unidades
+                  Este material contiene número de serial
                 </label>
               </div>
               {form.maneja_referencias && (
