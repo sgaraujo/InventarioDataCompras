@@ -258,10 +258,11 @@ export function Movimientos() {
               <input type="file" accept="image/*" onChange={(e) => setFoto(e.target.files?.[0] ?? null)} />
             </div>
             <div>
-              <label>Soporte documental (opcional)</label>
+              <label>{form.tipo === "salida" ? "Requisición" : "Soporte documental (opcional)"}</label>
               <input
                 type="file"
                 accept="image/*,application/pdf"
+                required={form.tipo === "salida"}
                 onChange={(e) => setAdjunto(e.target.files?.[0] ?? null)}
               />
             </div>
