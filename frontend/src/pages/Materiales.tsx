@@ -1,15 +1,21 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "../api/supabaseClient";
-import { subirEvidencia } from "../api/storage";
-import type { CentroCosto, Empresa, Material, MaterialReferenciaEstado } from "../api/types";
+import { borrarEvidencia, subirEvidencia } from "../api/storage";
+import type {
+  CentroCosto,
+  Empresa,
+  Material,
+  MaterialReferenciaDocumento,
+  MaterialReferenciaEstado,
+} from "../api/types";
 import { money, puedeEditar } from "../lib/labels";
 import { useAuth } from "../context/AuthContext";
 import { Modal } from "../components/Modal";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Paginacion } from "../components/Paginacion";
 import { usePaginacion } from "../hooks/usePaginacion";
-import { Pencil, ImageOff, Layers } from "lucide-react";
+import { Pencil, ImageOff, Layers, Camera, FileText, Paperclip } from "lucide-react";
 
 const TAMANO_PAGINA = 25;
 
@@ -27,6 +33,9 @@ interface ReferenciaForm {
   id?: number;
   codigo: string;
   ubicacion: string;
+  foto?: string | null;
+  // Foto elegida para una referencia nueva, se sube recien al guardar.
+  archivo?: File | null;
 }
 
 export function Materiales() {
@@ -50,6 +59,13 @@ export function Materiales() {
   const [referencias, setReferencias] = useState<ReferenciaForm[]>([]);
   const [nuevaRefCodigo, setNuevaRefCodigo] = useState("");
   const [nuevaRefUbicacion, setNuevaRefUbicacion] = useState("");
+  const [nuevaRefFoto, setNuevaRefFoto] = useState<File | null>(null);
+  const nuevaRefFotoInputRef = useRef<HTMLInputElement>(null);
+  const [subiendoFotoRefId, setSubiendoFotoRefId] = useState<number | null>(null);
+  const [errorRef, setErrorRef] = useState<string | null>(null);
+  const [documentosPorRef, setDocumentosPorRef] = useState<Record<number, MaterialReferenciaDocumento[]>>({});
+  const [subiendoDocRefId, setSubiendoDocRefId] = useState<number | null>(null);
+  const [confirmandoBorrarDoc, setConfirmandoBorrarDoc] = useState<MaterialReferenciaDocumento | null>(null);
   const [verReferenciasDe, setVerReferenciasDe] = useState<Material | null>(null);
   const [fotoAmpliada, setFotoAmpliada] = useState<{ url: string; nombre: string } | null>(null);
   const [referenciasEstado, setReferenciasEstado] = useState<MaterialReferenciaEstado[]>([]);
@@ -120,6 +136,7 @@ export function Materiales() {
     setReferencias([]);
     setNuevaRefCodigo("");
     setNuevaRefUbicacion("");
+    limpiarNuevaRefFoto();
     setMensaje(null);
     setMostrarForm(true);
   }
@@ -140,13 +157,14 @@ export function Materiales() {
     setNuevoCentroCosto("");
     setNuevaRefCodigo("");
     setNuevaRefUbicacion("");
+    limpiarNuevaRefFoto();
     setMensaje(null);
     setMostrarForm(true);
 
     if (m.maneja_referencias) {
       const { data } = await supabase
         .from("material_referencias")
-        .select("id, codigo, ubicacion")
+        .select("id, codigo, ubicacion, foto")
         .eq("material_id", m.id)
         .order("codigo");
       setReferencias((data as ReferenciaForm[]) ?? []);
@@ -163,7 +181,13 @@ export function Materiales() {
     setReferencias([]);
     setNuevaRefCodigo("");
     setNuevaRefUbicacion("");
+    limpiarNuevaRefFoto();
     setMensaje(null);
+  }
+
+  function limpiarNuevaRefFoto() {
+    setNuevaRefFoto(null);
+    if (nuevaRefFotoInputRef.current) nuevaRefFotoInputRef.current.value = "";
   }
 
   function agregarReferencia() {
@@ -173,9 +197,10 @@ export function Materiales() {
       setMensaje({ texto: `La referencia "${codigo}" ya está en la lista.`, tipo: "error" });
       return;
     }
-    setReferencias((prev) => [...prev, { codigo, ubicacion: nuevaRefUbicacion.trim() }]);
+    setReferencias((prev) => [...prev, { codigo, ubicacion: nuevaRefUbicacion.trim(), archivo: nuevaRefFoto }]);
     setNuevaRefCodigo("");
     setNuevaRefUbicacion("");
+    limpiarNuevaRefFoto();
   }
 
   // Solo se pueden quitar de la lista las referencias que todavia no se han
@@ -240,11 +265,15 @@ export function Materiales() {
       // las que ya venian de la base (editar) no se tocan aca.
       const nuevas = referencias.filter((r) => !r.id);
       if (form.maneja_referencias && nuevas.length > 0) {
+        const fotosRefs = await Promise.all(
+          nuevas.map((r) => (r.archivo ? subirEvidencia("referencias", r.archivo) : Promise.resolve(null)))
+        );
         const { error: errorRefs } = await supabase.from("material_referencias").insert(
-          nuevas.map((r) => ({
+          nuevas.map((r, i) => ({
             material_id: materialId,
             codigo: r.codigo,
             ubicacion: r.ubicacion || null,
+            foto: fotosRefs[i],
           }))
         );
         if (errorRefs) throw errorRefs;
@@ -295,8 +324,76 @@ export function Materiales() {
       .select("*")
       .eq("material_id", m.id)
       .order("codigo");
-    setReferenciasEstado((data as MaterialReferenciaEstado[]) ?? []);
+    const refs = (data as MaterialReferenciaEstado[]) ?? [];
+    setReferenciasEstado(refs);
+
+    const porRef: Record<number, MaterialReferenciaDocumento[]> = {};
+    if (refs.length > 0) {
+      const { data: docs } = await supabase
+        .from("material_referencia_documentos")
+        .select("*")
+        .in("referencia_id", refs.map((r) => r.id))
+        .order("creado_en");
+      for (const d of (docs as MaterialReferenciaDocumento[]) ?? []) {
+        (porRef[d.referencia_id] ??= []).push(d);
+      }
+    }
+    setDocumentosPorRef(porRef);
     setCargandoReferenciasEstado(false);
+  }
+
+  async function adjuntarDocumentoReferencia(ref: MaterialReferenciaEstado, archivo: File) {
+    setSubiendoDocRefId(ref.id);
+    setErrorRef(null);
+    try {
+      const url = await subirEvidencia("referencias", archivo);
+      const { data, error } = await supabase
+        .from("material_referencia_documentos")
+        .insert({ referencia_id: ref.id, nombre: archivo.name, url })
+        .select()
+        .single();
+      if (error) throw error;
+      const doc = data as MaterialReferenciaDocumento;
+      setDocumentosPorRef((prev) => ({ ...prev, [ref.id]: [...(prev[ref.id] ?? []), doc] }));
+    } catch (err) {
+      setErrorRef(err instanceof Error ? err.message : "No se pudo subir el documento");
+    } finally {
+      setSubiendoDocRefId(null);
+    }
+  }
+
+  // Borra la fila y despues el archivo del bucket -- si falla lo segundo el
+  // documento igual deja de verse, solo queda el archivo huerfano.
+  async function borrarDocumentoReferencia(doc: MaterialReferenciaDocumento) {
+    setConfirmandoBorrarDoc(null);
+    setErrorRef(null);
+    const { error } = await supabase.from("material_referencia_documentos").delete().eq("id", doc.id);
+    if (error) {
+      setErrorRef(error.message || "No se pudo eliminar el documento");
+      return;
+    }
+    setDocumentosPorRef((prev) => ({
+      ...prev,
+      [doc.referencia_id]: (prev[doc.referencia_id] ?? []).filter((d) => d.id !== doc.id),
+    }));
+    borrarEvidencia(doc.url).catch(() => {});
+  }
+
+  // Adjunta (o reemplaza) la foto de una referencia ya guardada, directo
+  // desde el listado de referencias -- no hace falta abrir "Editar".
+  async function adjuntarFotoReferencia(ref: MaterialReferenciaEstado, archivo: File) {
+    setSubiendoFotoRefId(ref.id);
+    setErrorRef(null);
+    try {
+      const url = await subirEvidencia("referencias", archivo);
+      const { error } = await supabase.from("material_referencias").update({ foto: url }).eq("id", ref.id);
+      if (error) throw error;
+      setReferenciasEstado((prev) => prev.map((r) => (r.id === ref.id ? { ...r, foto: url } : r)));
+    } catch (err) {
+      setErrorRef(err instanceof Error ? err.message : "No se pudo subir la foto");
+    } finally {
+      setSubiendoFotoRefId(null);
+    }
   }
 
   return (
@@ -364,7 +461,8 @@ export function Materiales() {
             nuevoCentroCosto.trim() !== "" ||
             referencias.some((r) => !r.id) ||
             nuevaRefCodigo.trim() !== "" ||
-            nuevaRefUbicacion.trim() !== ""
+            nuevaRefUbicacion.trim() !== "" ||
+            Boolean(nuevaRefFoto)
           }
         >
           <form className="form-grid" onSubmit={handleSubmit}>
@@ -461,6 +559,13 @@ export function Materiales() {
                       value={nuevaRefUbicacion}
                       onChange={(e) => setNuevaRefUbicacion(e.target.value)}
                     />
+                    <input
+                      ref={nuevaRefFotoInputRef}
+                      type="file"
+                      accept="image/*"
+                      title="Foto de esta referencia (opcional)"
+                      onChange={(e) => setNuevaRefFoto(e.target.files?.[0] ?? null)}
+                    />
                     <button type="button" className="btn-secundario" disabled={!nuevaRefCodigo.trim()} onClick={agregarReferencia}>
                       + Agregar
                     </button>
@@ -471,6 +576,7 @@ export function Materiales() {
                         <span key={r.id ?? `${r.codigo}-${i}`} className="tag-chip">
                           {r.codigo}
                           {r.ubicacion ? ` — ${r.ubicacion}` : ""}
+                          {(r.archivo || r.foto) && <Camera size={12} aria-label="Con foto" />}
                           {!r.id && (
                             <button type="button" onClick={() => quitarReferencia(i)} aria-label={`Quitar ${r.codigo}`}>
                               ×
@@ -635,33 +741,63 @@ export function Materiales() {
         />
       )}
 
-      {verReferenciasDe && (
-        <Modal titulo={`Referencias de "${verReferenciasDe.descripcion}"`} onClose={() => setVerReferenciasDe(null)}>
+      {/* Mientras se ve una foto ampliada o se confirma borrar un documento,
+          el listado se oculta (no se apilan dos modales) y vuelve a aparecer
+          al cerrar. */}
+      {verReferenciasDe && !fotoAmpliada && !confirmandoBorrarDoc && (
+        <Modal
+          titulo={`Referencias de "${verReferenciasDe.descripcion}"`}
+          onClose={() => {
+            setVerReferenciasDe(null);
+            setErrorRef(null);
+          }}
+        >
           <div className="tabla-wrap">
             <table className="tabla">
               <thead>
                 <tr>
+                  <th>Foto</th>
                   <th>Código</th>
                   <th>Ubicación</th>
                   <th>Disponible</th>
+                  <th>Documentos</th>
+                  {editable && <th></th>}
                 </tr>
               </thead>
               <tbody>
                 {cargandoReferenciasEstado ? (
                   <tr>
-                    <td colSpan={3} className="empty-state">
+                    <td colSpan={editable ? 6 : 5} className="empty-state">
                       Cargando...
                     </td>
                   </tr>
                 ) : referenciasEstado.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="empty-state">
+                    <td colSpan={editable ? 6 : 5} className="empty-state">
                       Este material todavía no tiene referencias cargadas.
                     </td>
                   </tr>
                 ) : (
                   referenciasEstado.map((r) => (
                     <tr key={r.id}>
+                      <td>
+                        {r.foto ? (
+                          <button
+                            type="button"
+                            onClick={() => setFotoAmpliada({ url: r.foto!, nombre: `${verReferenciasDe.descripcion} — ${r.codigo}` })}
+                            title="Ver foto"
+                            style={{ border: "none", background: "none", padding: 0, cursor: "pointer" }}
+                          >
+                            <img
+                              src={r.foto}
+                              alt={r.codigo}
+                              style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 6 }}
+                            />
+                          </button>
+                        ) : (
+                          <ImageOff size={18} color="var(--text-muted)" />
+                        )}
+                      </td>
                       <td>{r.codigo}</td>
                       <td>{r.ubicacion || "—"}</td>
                       <td>
@@ -669,13 +805,85 @@ export function Materiales() {
                           {money(r.stock_disponible)}
                         </span>
                       </td>
+                      <td>
+                        {(documentosPorRef[r.id] ?? []).length === 0 ? (
+                          "—"
+                        ) : (
+                          <div className="documentos-referencia">
+                            {documentosPorRef[r.id].map((d) => (
+                              <span key={d.id} className="documento-referencia">
+                                <a href={d.url} target="_blank" rel="noopener noreferrer" title={d.nombre}>
+                                  <FileText size={14} />
+                                  <span>{d.nombre}</span>
+                                </a>
+                                {editable && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setConfirmandoBorrarDoc(d)}
+                                    aria-label={`Eliminar ${d.nombre}`}
+                                    title="Eliminar documento"
+                                  >
+                                    ×
+                                  </button>
+                                )}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                      {editable && (
+                        <td>
+                          <div className="acciones-solicitud">
+                            <label className="btn-editar" style={{ marginBottom: 0 }}>
+                              <Camera size={14} />
+                              {subiendoFotoRefId === r.id ? "Subiendo..." : r.foto ? "Cambiar foto" : "Adjuntar foto"}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                hidden
+                                disabled={subiendoFotoRefId !== null}
+                                onChange={(e) => {
+                                  const archivo = e.target.files?.[0];
+                                  e.target.value = "";
+                                  if (archivo) adjuntarFotoReferencia(r, archivo);
+                                }}
+                              />
+                            </label>
+                            <label className="btn-editar" style={{ marginBottom: 0 }}>
+                              <Paperclip size={14} />
+                              {subiendoDocRefId === r.id ? "Subiendo..." : "Adjuntar documento"}
+                              <input
+                                type="file"
+                                accept="application/pdf,image/*,.doc,.docx,.xls,.xlsx"
+                                hidden
+                                disabled={subiendoDocRefId !== null}
+                                onChange={(e) => {
+                                  const archivo = e.target.files?.[0];
+                                  e.target.value = "";
+                                  if (archivo) adjuntarDocumentoReferencia(r, archivo);
+                                }}
+                              />
+                            </label>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))
                 )}
               </tbody>
             </table>
           </div>
+          {errorRef && <div className="mensaje-form error">{errorRef}</div>}
         </Modal>
+      )}
+
+      {confirmandoBorrarDoc && (
+        <ConfirmDialog
+          titulo={`¿Eliminar "${confirmandoBorrarDoc.nombre}"?`}
+          descripcion="El documento se borra de esta referencia y no se puede recuperar."
+          onConfirmar={() => borrarDocumentoReferencia(confirmandoBorrarDoc)}
+          onCancelar={() => setConfirmandoBorrarDoc(null)}
+        />
       )}
 
       {fotoAmpliada && (

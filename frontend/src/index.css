@@ -2132,3 +2132,48 @@ form.form-grid button.btn-secundario:hover {
   background: var(--success-bg);
   color: var(--success);
 }
+
+/* Documentos adjuntos de una referencia (listado de referencias en
+   Materiales) -- un link por documento, con nombre recortado si es largo. */
+.documentos-referencia {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.documento-referencia {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+}
+
+.documento-referencia a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  color: var(--teal-dark);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.documento-referencia a:hover span { text-decoration: underline; }
+
+.documento-referencia a span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.documento-referencia button {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+.documento-referencia button:hover { color: var(--danger); }

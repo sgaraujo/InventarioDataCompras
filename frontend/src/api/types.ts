@@ -60,6 +60,8 @@ export interface MaterialReferencia {
   material_id: number;
   codigo: string;
   ubicacion: string | null;
+  // URL publica de la foto de esta referencia puntual (bucket "evidencias").
+  foto: string | null;
   creado_en: string;
 }
 
@@ -69,6 +71,16 @@ export interface MaterialReferencia {
 // pero filtrado por esa referencia -- nunca se guarda a mano.
 export interface MaterialReferenciaEstado extends MaterialReferencia {
   stock_disponible: number;
+}
+
+// Documento adjunto a una referencia puntual (certificado, factura,
+// manual...) -- puede haber varios por referencia.
+export interface MaterialReferenciaDocumento {
+  id: number;
+  referencia_id: number;
+  nombre: string;
+  url: string;
+  creado_en: string;
 }
 
 export type TipoMovimiento = "entrada" | "salida";
