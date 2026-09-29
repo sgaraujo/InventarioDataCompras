@@ -33,6 +33,9 @@ interface ReferenciaForm {
   id?: number;
   codigo: string;
   ubicacion: string;
+  // Ubicacion tal como vino de la base (solo referencias ya guardadas) --
+  // para saber al guardar cuales cambiaron y actualizar solo esas.
+  ubicacionOriginal?: string;
   foto?: string | null;
   // Foto elegida para una referencia nueva, se sube recien al guardar.
   archivo?: File | null;
@@ -60,6 +63,8 @@ export function Materiales() {
   const [nuevaRefCodigo, setNuevaRefCodigo] = useState("");
   const [nuevaRefUbicacion, setNuevaRefUbicacion] = useState("");
   const [nuevaRefFoto, setNuevaRefFoto] = useState<File | null>(null);
+  const [editandoRefIndex, setEditandoRefIndex] = useState<number | null>(null);
+  const [ubicacionEditada, setUbicacionEditada] = useState("");
   const nuevaRefFotoInputRef = useRef<HTMLInputElement>(null);
   const [subiendoFotoRefId, setSubiendoFotoRefId] = useState<number | null>(null);
   const [errorRef, setErrorRef] = useState<string | null>(null);
@@ -137,6 +142,7 @@ export function Materiales() {
     setNuevaRefCodigo("");
     setNuevaRefUbicacion("");
     limpiarNuevaRefFoto();
+    setEditandoRefIndex(null);
     setMensaje(null);
     setMostrarForm(true);
   }
@@ -158,6 +164,7 @@ export function Materiales() {
     setNuevaRefCodigo("");
     setNuevaRefUbicacion("");
     limpiarNuevaRefFoto();
+    setEditandoRefIndex(null);
     setMensaje(null);
     setMostrarForm(true);
 
@@ -167,7 +174,13 @@ export function Materiales() {
         .select("id, codigo, ubicacion, foto")
         .eq("material_id", m.id)
         .order("codigo");
-      setReferencias((data as ReferenciaForm[]) ?? []);
+      setReferencias(
+        ((data as { id: number; codigo: string; ubicacion: string | null; foto: string | null }[]) ?? []).map((r) => ({
+          ...r,
+          ubicacion: r.ubicacion ?? "",
+          ubicacionOriginal: r.ubicacion ?? "",
+        }))
+      );
     } else {
       setReferencias([]);
     }
@@ -182,6 +195,7 @@ export function Materiales() {
     setNuevaRefCodigo("");
     setNuevaRefUbicacion("");
     limpiarNuevaRefFoto();
+    setEditandoRefIndex(null);
     setMensaje(null);
   }
 
@@ -203,11 +217,26 @@ export function Materiales() {
     limpiarNuevaRefFoto();
   }
 
+  function empezarEditarUbicacion(index: number) {
+    setEditandoRefIndex(index);
+    setUbicacionEditada(referencias[index].ubicacion);
+  }
+
+  // Solo cambia la lista en memoria -- se guarda en la base con el resto del
+  // formulario ("Guardar cambios").
+  function aplicarUbicacionEditada() {
+    if (editandoRefIndex === null) return;
+    const ubicacion = ubicacionEditada.trim();
+    setReferencias((prev) => prev.map((r, i) => (i === editandoRefIndex ? { ...r, ubicacion } : r)));
+    setEditandoRefIndex(null);
+  }
+
   // Solo se pueden quitar de la lista las referencias que todavia no se han
   // guardado (sin id) -- una vez guardada, borrarla es otra decision (podria
   // tener movimientos encima) y no la maneja este formulario.
   function quitarReferencia(index: number) {
     setReferencias((prev) => prev.filter((_, i) => i !== index));
+    setEditandoRefIndex(null);
   }
 
   const centrosDeLaEmpresa = centrosCosto.filter((c) => String(c.empresa_id) === form.empresa_id);
@@ -277,6 +306,17 @@ export function Materiales() {
           }))
         );
         if (errorRefs) throw errorRefs;
+      }
+
+      const ubicacionesCambiadas = referencias.filter((r) => r.id && r.ubicacion !== r.ubicacionOriginal);
+      if (form.maneja_referencias && ubicacionesCambiadas.length > 0) {
+        const resultados = await Promise.all(
+          ubicacionesCambiadas.map((r) =>
+            supabase.from("material_referencias").update({ ubicacion: r.ubicacion || null }).eq("id", r.id!)
+          )
+        );
+        const errorUbicacion = resultados.find((res) => res.error)?.error;
+        if (errorUbicacion) throw errorUbicacion;
       }
 
       setMostrarForm(false);
@@ -459,7 +499,8 @@ export function Materiales() {
             JSON.stringify(form) !== JSON.stringify(formInicialRef.current) ||
             Boolean(foto) ||
             nuevoCentroCosto.trim() !== "" ||
-            referencias.some((r) => !r.id) ||
+            referencias.some((r) => !r.id || r.ubicacion !== r.ubicacionOriginal) ||
+            editandoRefIndex !== null ||
             nuevaRefCodigo.trim() !== "" ||
             nuevaRefUbicacion.trim() !== "" ||
             Boolean(nuevaRefFoto)
@@ -572,18 +613,55 @@ export function Materiales() {
                   </div>
                   {referencias.length > 0 ? (
                     <div className="tags-lista" style={{ marginTop: 8 }}>
-                      {referencias.map((r, i) => (
-                        <span key={r.id ?? `${r.codigo}-${i}`} className="tag-chip">
-                          {r.codigo}
-                          {r.ubicacion ? ` — ${r.ubicacion}` : ""}
-                          {(r.archivo || r.foto) && <Camera size={12} aria-label="Con foto" />}
-                          {!r.id && (
-                            <button type="button" onClick={() => quitarReferencia(i)} aria-label={`Quitar ${r.codigo}`}>
+                      {referencias.map((r, i) =>
+                        editandoRefIndex === i ? (
+                          <span key={r.id ?? `${r.codigo}-${i}`} className="tag-chip tag-chip--editando">
+                            {r.codigo} —
+                            <input
+                              type="text"
+                              autoFocus
+                              placeholder="Ubicación"
+                              value={ubicacionEditada}
+                              onChange={(e) => setUbicacionEditada(e.target.value)}
+                              onKeyDown={(e) => {
+                                // Enter no debe enviar el formulario entero, solo aplicar este cambio.
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  aplicarUbicacionEditada();
+                                } else if (e.key === "Escape") {
+                                  e.stopPropagation();
+                                  setEditandoRefIndex(null);
+                                }
+                              }}
+                            />
+                            <button type="button" onClick={aplicarUbicacionEditada} aria-label="Aplicar ubicación">
+                              ✓
+                            </button>
+                            <button type="button" onClick={() => setEditandoRefIndex(null)} aria-label="Cancelar">
                               ×
                             </button>
-                          )}
-                        </span>
-                      ))}
+                          </span>
+                        ) : (
+                          <span key={r.id ?? `${r.codigo}-${i}`} className="tag-chip">
+                            <button
+                              type="button"
+                              className="tag-chip__editar"
+                              onClick={() => empezarEditarUbicacion(i)}
+                              title="Editar ubicación"
+                            >
+                              {r.codigo}
+                              {r.ubicacion ? ` — ${r.ubicacion}` : ""}
+                              <Pencil size={11} />
+                            </button>
+                            {(r.archivo || r.foto) && <Camera size={12} aria-label="Con foto" />}
+                            {!r.id && (
+                              <button type="button" onClick={() => quitarReferencia(i)} aria-label={`Quitar ${r.codigo}`}>
+                                ×
+                              </button>
+                            )}
+                          </span>
+                        )
+                      )}
                     </div>
                   ) : (
                     <div className="stock-aviso">Todavía no has agregado ninguna referencia.</div>
