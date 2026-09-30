@@ -2215,3 +2215,29 @@ form.form-grid .tag-chip--editando button {
   font-size: 14px;
   padding: 0 3px;
 }
+
+.error-boundary {
+  max-width: 420px;
+  margin: 80px auto;
+  padding: 28px;
+  text-align: center;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.error-boundary h2 { margin: 0 0 8px; color: var(--danger); }
+.error-boundary p { margin: 0 0 18px; color: var(--text-muted); }
+
+.error-boundary button {
+  background: var(--teal);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 18px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.error-boundary button:hover { background: var(--teal-dark); }

@@ -620,6 +620,7 @@ export function Materiales() {
                             <input
                               type="text"
                               autoFocus
+                              spellCheck={false}
                               placeholder="Ubicación"
                               value={ubicacionEditada}
                               onChange={(e) => setUbicacionEditada(e.target.value)}
