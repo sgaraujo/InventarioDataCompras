@@ -5,6 +5,7 @@ import type { Movimiento } from "../api/types";
 import { money } from "../lib/labels";
 import { Paginacion } from "../components/Paginacion";
 import { usePaginacion } from "../hooks/usePaginacion";
+import { Modal } from "../components/Modal";
 import { FileText, Image as ImageIcon } from "lucide-react";
 
 const TAMANO_PAGINA = 25;
@@ -18,6 +19,8 @@ export function Historial() {
   const [filtroDesde, setFiltroDesde] = useState("");
   const [filtroHasta, setFiltroHasta] = useState("");
   const [filtroTexto, setFiltroTexto] = useState("");
+
+  const [evidenciaVista, setEvidenciaVista] = useState<{ url: string; titulo: string } | null>(null);
 
   async function cargarMovimientos() {
     setCargando(true);
@@ -152,14 +155,28 @@ export function Historial() {
                     <td>
                       <div style={{ display: "flex", gap: 6 }}>
                         {m.foto && (
-                          <a href={m.foto} target="_blank" rel="noreferrer" title="Ver foto">
+                          <button
+                            type="button"
+                            className="link-evidencia"
+                            title="Ver foto"
+                            onClick={() =>
+                              setEvidenciaVista({ url: m.foto!, titulo: `Foto — ${m.material_descripcion}` })
+                            }
+                          >
                             <ImageIcon size={16} />
-                          </a>
+                          </button>
                         )}
                         {m.adjunto && (
-                          <a href={m.adjunto} target="_blank" rel="noreferrer" title="Ver soporte">
+                          <button
+                            type="button"
+                            className="link-evidencia"
+                            title="Ver soporte"
+                            onClick={() =>
+                              setEvidenciaVista({ url: m.adjunto!, titulo: `Soporte — ${m.material_descripcion}` })
+                            }
+                          >
                             <FileText size={16} />
-                          </a>
+                          </button>
                         )}
                         {!m.foto && !m.adjunto && "—"}
                       </div>
@@ -180,6 +197,24 @@ export function Historial() {
           onCambiarPagina={irAPagina}
         />
       </div>
+
+      {evidenciaVista && (
+        <Modal titulo={evidenciaVista.titulo} onClose={() => setEvidenciaVista(null)}>
+          {evidenciaVista.url.toLowerCase().includes(".pdf") ? (
+            <iframe
+              src={evidenciaVista.url}
+              title={evidenciaVista.titulo}
+              style={{ width: "100%", height: "70vh", border: "none", borderRadius: 8 }}
+            />
+          ) : (
+            <img
+              src={evidenciaVista.url}
+              alt={evidenciaVista.titulo}
+              style={{ width: "100%", maxHeight: "70vh", objectFit: "contain", borderRadius: 8 }}
+            />
+          )}
+        </Modal>
+      )}
     </section>
   );
 }

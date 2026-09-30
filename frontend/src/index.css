@@ -2241,3 +2241,18 @@ form.form-grid .tag-chip--editando button {
 }
 
 .error-boundary button:hover { background: var(--teal-dark); }
+
+/* Iconos de foto/soporte en Historial -- abren un modal en vez de una
+   pestana nueva, se ven como los demas botones-icono de la app. */
+.link-evidencia {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--teal-dark);
+  cursor: pointer;
+}
+
+.link-evidencia:hover { color: var(--teal); }
