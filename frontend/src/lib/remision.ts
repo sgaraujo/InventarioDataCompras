@@ -69,8 +69,12 @@ function construirRemisionPdf(datos: DatosRemision): jsPDF {
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(fontSize);
-    const lineasA = doc.splitTextToSize(valueA || "—", valueW - padX * 2);
-    const lineasB = doc.splitTextToSize(valueB || "—", valueW - padX * 2);
+    // No se rellena con "—" aca: Cargo/Area e Identificacion se pasan vacios
+    // a proposito (se diligencian a mano), y deben quedar en blanco, no con
+    // un guion. Los demas campos ya traen su propio "—" de respaldo desde
+    // donde se arma DatosRemision.
+    const lineasA = doc.splitTextToSize(valueA, valueW - padX * 2);
+    const lineasB = doc.splitTextToSize(valueB, valueW - padX * 2);
     const lineH = fontSize * 0.42;
     const h = Math.max(8, Math.max(lineasA.length, lineasB.length) * lineH + 4);
 
