@@ -117,25 +117,26 @@ export function Historial() {
                 <th>Cantidad</th>
                 <th>Solicitante</th>
                 <th>Observaciones</th>
+                <th>Ubicación</th>
                 <th>Evidencia</th>
               </tr>
             </thead>
             <tbody>
               {cargando ? (
                 <tr>
-                  <td colSpan={9} className="empty-state">
+                  <td colSpan={10} className="empty-state">
                     Cargando...
                   </td>
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={9} className="empty-state">
+                  <td colSpan={10} className="empty-state">
                     No se pudieron cargar los movimientos ({error}).
                   </td>
                 </tr>
               ) : pageItems.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="empty-state">
+                  <td colSpan={10} className="empty-state">
                     No hay movimientos con ese filtro.
                   </td>
                 </tr>
@@ -152,6 +153,7 @@ export function Historial() {
                     <td>{money(m.cantidad)}</td>
                     <td>{m.solicitante_nombre || "—"}</td>
                     <td>{m.observaciones || "—"}</td>
+                    <td>{m.ubicacion || "—"}</td>
                     <td>
                       <div style={{ display: "flex", gap: 6 }}>
                         {m.foto && (
