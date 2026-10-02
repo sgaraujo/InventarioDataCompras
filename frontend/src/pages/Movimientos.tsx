@@ -6,6 +6,9 @@ import { Modal } from "../components/Modal";
 import { ComboMaterial } from "../components/ComboMaterial";
 import { PanelMovimientosRecientes } from "../components/PanelMovimientosRecientes";
 import { useMovimientosRecientes } from "../hooks/useMovimientosRecientes";
+import { money } from "../lib/labels";
+import { descargarRemisionPdf, abrirRemisionPdf, type DatosRemision } from "../lib/remision";
+import { FileDown, Printer } from "lucide-react";
 
 const FORM_VACIO = {
   material_id: "",
@@ -36,6 +39,7 @@ export function Movimientos() {
   const [cargandoReferencias, setCargandoReferencias] = useState(false);
   const [nuevoSolicitante, setNuevoSolicitante] = useState("");
   const [creandoSolicitante, setCreandoSolicitante] = useState(false);
+  const [ultimaRemision, setUltimaRemision] = useState<DatosRemision | null>(null);
 
   async function cargarMateriales() {
     const { data } = await supabase
@@ -69,6 +73,7 @@ export function Movimientos() {
     setActaEntrega(null);
     setNuevoSolicitante("");
     setMensaje(null);
+    setUltimaRemision(null);
     setMostrarForm(true);
   }
 
@@ -161,19 +166,50 @@ export function Movimientos() {
       ]);
       const actaUrl = actaEntrega ? await subirEvidencia("movimientos", actaEntrega) : undefined;
 
-      const { error } = await supabase.from("movimientos").insert({
-        material_id: Number(form.material_id),
-        tipo: form.tipo,
-        cantidad: Number(form.cantidad),
-        referencia_id: form.referencia_id ? Number(form.referencia_id) : null,
-        solicitante_id: form.solicitante_id ? Number(form.solicitante_id) : null,
-        observaciones: form.observaciones || null,
-        ubicacion: form.tipo === "salida" ? form.ubicacion.trim() || null : null,
-        ...(fotoUrl ? { foto: fotoUrl } : {}),
-        ...(adjuntoUrl ? { adjunto: adjuntoUrl } : {}),
-        ...(actaUrl ? { acta_entrega: actaUrl } : {}),
-      });
+      const { data, error } = await supabase
+        .from("movimientos")
+        .insert({
+          material_id: Number(form.material_id),
+          tipo: form.tipo,
+          cantidad: Number(form.cantidad),
+          referencia_id: form.referencia_id ? Number(form.referencia_id) : null,
+          solicitante_id: form.solicitante_id ? Number(form.solicitante_id) : null,
+          observaciones: form.observaciones || null,
+          ubicacion: form.tipo === "salida" ? form.ubicacion.trim() || null : null,
+          ...(fotoUrl ? { foto: fotoUrl } : {}),
+          ...(adjuntoUrl ? { adjunto: adjuntoUrl } : {}),
+          ...(actaUrl ? { acta_entrega: actaUrl } : {}),
+        })
+        .select("id, creado_en")
+        .single();
       if (error) throw error;
+
+      if (form.tipo === "salida") {
+        const solicitanteNombre = solicitantes.find((s) => String(s.id) === form.solicitante_id)?.nombre || "—";
+        const fecha = new Intl.DateTimeFormat("es-CO", {
+          timeZone: "America/Bogota",
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        }).format(new Date(data.creado_en));
+        setUltimaRemision({
+          numero: `REM-${String(data.id).padStart(6, "0")}`,
+          fecha,
+          empresa: materialSeleccionado?.empresa_nombre ?? "—",
+          centroCosto: materialSeleccionado?.centro_costo_nombre ?? "—",
+          solicitante: solicitanteNombre,
+          destino:
+            form.ubicacion.trim() || referenciaSeleccionada?.ubicacion || materialSeleccionado?.ubicacion || "—",
+          motivo: form.observaciones || "—",
+          codigo: materialSeleccionado?.codigo ?? "—",
+          descripcion: materialSeleccionado?.descripcion ?? "—",
+          cantidad: money(Number(form.cantidad)),
+          serieLote: referenciaSeleccionada?.codigo ?? "—",
+        });
+      } else {
+        setUltimaRemision(null);
+      }
+
       cerrarForm();
       await Promise.all([cargarMateriales(), cargarRecientes()]);
       setMensaje({ texto: "Movimiento registrado correctamente.", tipo: "ok" });
@@ -197,6 +233,22 @@ export function Movimientos() {
       </div>
 
       {!mostrarForm && mensaje && <div className={`mensaje-form ${mensaje.tipo}`}>{mensaje.texto}</div>}
+
+      {!mostrarForm && ultimaRemision && (
+        <div className="aviso-remision">
+          <span>
+            Remisión <strong>{ultimaRemision.numero}</strong> lista para esta salida.
+          </span>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="button" className="btn-secundario" onClick={() => abrirRemisionPdf(ultimaRemision)}>
+              <Printer size={14} /> Ver / Imprimir
+            </button>
+            <button type="button" className="btn-secundario" onClick={() => descargarRemisionPdf(ultimaRemision)}>
+              <FileDown size={14} /> Descargar PDF
+            </button>
+          </div>
+        </div>
+      )}
 
       {mostrarForm && (
         <Modal
