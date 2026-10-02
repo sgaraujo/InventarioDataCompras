@@ -14,6 +14,7 @@ const FORM_VACIO = {
   referencia_id: "",
   solicitante_id: "",
   observaciones: "",
+  ubicacion: "",
 };
 
 // Registro directo de entradas/salidas (sin flujo de aprobacion -- el cliente
@@ -110,7 +111,7 @@ export function Movimientos() {
   // solo las que ya tengan stock_disponible > 0 (filtrado en el render).
   async function seleccionarMaterial(id: string) {
     const mat = materiales.find((m) => String(m.id) === id);
-    setForm((f) => ({ ...f, material_id: id, referencia_id: "" }));
+    setForm((f) => ({ ...f, material_id: id, referencia_id: "", ubicacion: "" }));
     if (!mat?.maneja_referencias) {
       setReferenciasDelMaterial([]);
       return;
@@ -167,6 +168,7 @@ export function Movimientos() {
         referencia_id: form.referencia_id ? Number(form.referencia_id) : null,
         solicitante_id: form.solicitante_id ? Number(form.solicitante_id) : null,
         observaciones: form.observaciones || null,
+        ubicacion: form.tipo === "salida" ? form.ubicacion.trim() || null : null,
         ...(fotoUrl ? { foto: fotoUrl } : {}),
         ...(adjuntoUrl ? { adjunto: adjuntoUrl } : {}),
         ...(actaUrl ? { acta_entrega: actaUrl } : {}),
@@ -201,7 +203,13 @@ export function Movimientos() {
           titulo={form.tipo === "entrada" ? "Registrar entrada de material" : "Registrar salida de material"}
           onClose={cerrarForm}
           confirmarCierre={Boolean(
-            form.material_id || form.cantidad || foto || adjunto || actaEntrega || nuevoSolicitante.trim()
+            form.material_id ||
+              form.cantidad ||
+              form.ubicacion.trim() ||
+              foto ||
+              adjunto ||
+              actaEntrega ||
+              nuevoSolicitante.trim()
           )}
         >
           <form className="form-grid" onSubmit={handleSubmit}>
@@ -212,7 +220,7 @@ export function Movimientos() {
                 <select
                   required
                   value={form.referencia_id}
-                  onChange={(e) => setForm({ ...form, referencia_id: e.target.value })}
+                  onChange={(e) => setForm({ ...form, referencia_id: e.target.value, ubicacion: "" })}
                 >
                   <option value="">{cargandoReferencias ? "Cargando..." : "Selecciona una referencia"}</option>
                   {referenciasCandidatas.map((r) => (
@@ -258,6 +266,22 @@ export function Movimientos() {
                 )
               )}
             </div>
+            {form.tipo === "salida" && (
+              <div>
+                <label>Nueva ubicación (opcional)</label>
+                <input
+                  type="text"
+                  placeholder="Deja vacío si no cambia de sitio"
+                  value={form.ubicacion}
+                  onChange={(e) => setForm({ ...form, ubicacion: e.target.value })}
+                />
+                <div className="stock-aviso" style={{ marginTop: 6 }}>
+                  Ubicación actual:{" "}
+                  {(referenciaSeleccionada?.ubicacion || materialSeleccionado?.ubicacion) ?? "sin registrar"}. Solo
+                  escribe aquí si el material va a quedar en un lugar distinto.
+                </div>
+              </div>
+            )}
             <div>
               <label>Solicitante</label>
               <select value={form.solicitante_id} onChange={(e) => setForm({ ...form, solicitante_id: e.target.value })}>

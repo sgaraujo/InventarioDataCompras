@@ -20,24 +20,25 @@ export function PanelMovimientosRecientes({ movimientos, cargando, error }: Prop
               <th>Tipo</th>
               <th>Cantidad</th>
               <th>Solicitante</th>
+              <th>Ubicación</th>
             </tr>
           </thead>
           <tbody>
             {cargando ? (
               <tr>
-                <td colSpan={5} className="empty-state">
+                <td colSpan={6} className="empty-state">
                   Cargando...
                 </td>
               </tr>
             ) : error ? (
               <tr>
-                <td colSpan={5} className="empty-state">
+                <td colSpan={6} className="empty-state">
                   No se pudieron cargar los movimientos ({error}).
                 </td>
               </tr>
             ) : movimientos.length === 0 ? (
               <tr>
-                <td colSpan={5} className="empty-state">
+                <td colSpan={6} className="empty-state">
                   Aún no hay movimientos registrados.
                 </td>
               </tr>
@@ -51,6 +52,7 @@ export function PanelMovimientosRecientes({ movimientos, cargando, error }: Prop
                   </td>
                   <td>{money(m.cantidad)}</td>
                   <td>{m.solicitante_nombre || "—"}</td>
+                  <td>{m.ubicacion || "—"}</td>
                 </tr>
               ))
             )}

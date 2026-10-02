@@ -105,6 +105,9 @@ export interface Movimiento {
   adjunto: string | null;
   acta_entrega: string | null;
   observaciones: string | null;
+  // Solo en Salida -- a donde quedo el material. Si se diligencia, actualiza
+  // tambien la ubicacion de la referencia (o del material) de una vez.
+  ubicacion: string | null;
   registrado_por: string;
   creado_en: string;
 }
@@ -118,6 +121,7 @@ export interface MovimientoReciente {
   cantidad: number;
   material_descripcion: string;
   solicitante_nombre: string | null;
+  ubicacion: string | null;
 }
 
 // Resultado de la funcion RPC resumen_movimientos_mensual() -- entradas y
