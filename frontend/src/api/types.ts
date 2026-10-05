@@ -48,6 +48,10 @@ export interface Material {
   maneja_referencias: boolean;
   stock_actual: number;
   foto: string | null;
+  // Precio de adquisicion por unidad -- opcional, solo lo puede poner/
+  // cambiar el rol admin (ver trigger restringir_precio_a_admin()). El valor
+  // total (precio * stock_actual) se calcula en el momento, nunca se guarda.
+  precio_unitario: number | null;
   activo: boolean;
   creado_en: string;
 }
@@ -71,6 +75,11 @@ export interface MaterialReferencia {
 // pero filtrado por esa referencia -- nunca se guarda a mano.
 export interface MaterialReferenciaEstado extends MaterialReferencia {
   stock_disponible: number;
+  // Mismo precio opcional admin-only que materiales.precio_unitario, pero
+  // por cada referencia puntual. valor_total = precio_unitario * stock_disponible,
+  // calculado por la vista, nunca guardado.
+  precio_unitario: number | null;
+  valor_total: number | null;
 }
 
 // Documento adjunto a una referencia puntual (certificado, factura,

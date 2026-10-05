@@ -9,7 +9,7 @@ import type {
   MaterialReferenciaDocumento,
   MaterialReferenciaEstado,
 } from "../api/types";
-import { money, puedeEditar } from "../lib/labels";
+import { esAdmin, money, puedeEditar } from "../lib/labels";
 import { useAuth } from "../context/AuthContext";
 import { Modal } from "../components/Modal";
 import { ConfirmDialog } from "../components/ConfirmDialog";
@@ -25,6 +25,7 @@ const FORM_VACIO = {
   centro_costo_id: "",
   descripcion: "",
   ubicacion: "",
+  precio_unitario: "",
   maneja_referencias: false,
   activo: true,
 };
@@ -44,6 +45,10 @@ interface ReferenciaForm {
 export function Materiales() {
   const { usuario } = useAuth();
   const editable = puedeEditar(usuario);
+  // El precio de adquisicion lo ve cualquiera, pero solo admin lo puede
+  // cambiar (el trigger restringir_precio_a_admin() lo blinda igual del
+  // lado de la base, esto es solo para la UI).
+  const puedeEditarPrecio = esAdmin(usuario);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const q = (searchParams.get("q") ?? "").toLowerCase();
@@ -154,6 +159,7 @@ export function Materiales() {
       centro_costo_id: m.centro_costo_id ? String(m.centro_costo_id) : "",
       descripcion: m.descripcion,
       ubicacion: m.ubicacion ?? "",
+      precio_unitario: m.precio_unitario != null ? String(m.precio_unitario) : "",
       maneja_referencias: m.maneja_referencias,
       activo: m.activo,
     };
@@ -275,6 +281,7 @@ export function Materiales() {
         centro_costo_id: form.centro_costo_id ? Number(form.centro_costo_id) : null,
         descripcion: form.descripcion,
         ubicacion: form.ubicacion.trim() || null,
+        precio_unitario: form.precio_unitario.trim() === "" ? null : Number(form.precio_unitario),
         maneja_referencias: form.maneja_referencias,
         ...(fotoUrl ? { foto: fotoUrl } : {}),
         ...(editando ? { activo: form.activo } : {}),
@@ -436,6 +443,26 @@ export function Materiales() {
     }
   }
 
+  // Solo llega a pintarse si puedeEditarPrecio es true, pero el trigger
+  // restringir_precio_a_admin() igual blinda esto del lado de la base.
+  async function actualizarPrecioReferencia(ref: MaterialReferenciaEstado, valorTexto: string) {
+    const precio = valorTexto.trim() === "" ? null : Number(valorTexto);
+    if (precio !== null && (Number.isNaN(precio) || precio < 0)) return;
+    if (precio === ref.precio_unitario) return;
+    const { error } = await supabase.from("material_referencias").update({ precio_unitario: precio }).eq("id", ref.id);
+    if (error) {
+      setErrorRef(error.message);
+      return;
+    }
+    setReferenciasEstado((prev) =>
+      prev.map((r) =>
+        r.id === ref.id
+          ? { ...r, precio_unitario: precio, valor_total: precio != null ? precio * r.stock_disponible : null }
+          : r
+      )
+    );
+  }
+
   return (
     <section className="view">
       {editable && (
@@ -573,6 +600,23 @@ export function Materiales() {
                 onChange={(e) => setForm({ ...form, ubicacion: e.target.value })}
               />
             </div>
+            <div>
+              <label>Precio unitario (opcional)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="Precio de adquisición por unidad"
+                value={form.precio_unitario}
+                disabled={!puedeEditarPrecio}
+                onChange={(e) => setForm({ ...form, precio_unitario: e.target.value })}
+              />
+              {!puedeEditarPrecio && (
+                <div className="stock-aviso" style={{ marginTop: 6 }}>
+                  Solo un administrador puede cambiar el precio.
+                </div>
+              )}
+            </div>
             <div className="full">
               <div className="checkbox-campo">
                 <input
@@ -706,6 +750,8 @@ export function Materiales() {
                 <th>Centro de costo</th>
                 <th>Ubicación</th>
                 <th>Stock actual</th>
+                <th>Precio unit.</th>
+                <th>Valor total</th>
                 <th>Estado</th>
                 {editable && <th>Acciones</th>}
               </tr>
@@ -713,13 +759,13 @@ export function Materiales() {
             <tbody>
               {cargando ? (
                 <tr>
-                  <td colSpan={editable ? 9 : 8} className="empty-state">
+                  <td colSpan={editable ? 11 : 10} className="empty-state">
                     Cargando...
                   </td>
                 </tr>
               ) : pageItems.length === 0 ? (
                 <tr>
-                  <td colSpan={editable ? 9 : 8} className="empty-state">
+                  <td colSpan={editable ? 11 : 10} className="empty-state">
                     No se encontraron materiales con ese filtro.
                   </td>
                 </tr>
@@ -760,6 +806,8 @@ export function Materiales() {
                     <td>{m.centro_costo_nombre || "—"}</td>
                     <td>{m.ubicacion || "—"}</td>
                     <td>{money(m.stock_actual)}</td>
+                    <td>{m.precio_unitario != null ? `$${money(m.precio_unitario)}` : "—"}</td>
+                    <td>{m.precio_unitario != null ? `$${money(m.precio_unitario * m.stock_actual)}` : "—"}</td>
                     <td>
                       <span className={`badge ${m.stock_actual > 0 ? "ok" : "sin_existencias"}`}>
                         {m.stock_actual > 0 ? "Con stock" : "Sin existencias"}
@@ -839,6 +887,8 @@ export function Materiales() {
                   <th>Código</th>
                   <th>Ubicación</th>
                   <th>Disponible</th>
+                  <th>Precio unit.</th>
+                  <th>Valor total</th>
                   <th>Documentos</th>
                   {editable && <th></th>}
                 </tr>
@@ -846,13 +896,13 @@ export function Materiales() {
               <tbody>
                 {cargandoReferenciasEstado ? (
                   <tr>
-                    <td colSpan={editable ? 6 : 5} className="empty-state">
+                    <td colSpan={editable ? 8 : 7} className="empty-state">
                       Cargando...
                     </td>
                   </tr>
                 ) : referenciasEstado.length === 0 ? (
                   <tr>
-                    <td colSpan={editable ? 6 : 5} className="empty-state">
+                    <td colSpan={editable ? 8 : 7} className="empty-state">
                       Este material todavía no tiene referencias cargadas.
                     </td>
                   </tr>
@@ -884,6 +934,25 @@ export function Materiales() {
                           {money(r.stock_disponible)}
                         </span>
                       </td>
+                      <td>
+                        {puedeEditarPrecio ? (
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            key={r.id}
+                            defaultValue={r.precio_unitario ?? ""}
+                            placeholder="—"
+                            style={{ width: 100 }}
+                            onBlur={(e) => actualizarPrecioReferencia(r, e.target.value)}
+                          />
+                        ) : r.precio_unitario != null ? (
+                          `$${money(r.precio_unitario)}`
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td>{r.valor_total != null ? `$${money(r.valor_total)}` : "—"}</td>
                       <td>
                         {(documentosPorRef[r.id] ?? []).length === 0 ? (
                           "—"
