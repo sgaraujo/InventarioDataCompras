@@ -7,8 +7,8 @@ import { ComboMaterial } from "../components/ComboMaterial";
 import { PanelMovimientosRecientes } from "../components/PanelMovimientosRecientes";
 import { useMovimientosRecientes } from "../hooks/useMovimientosRecientes";
 import { money } from "../lib/labels";
-import { descargarRemisionPdf, abrirRemisionPdf, type DatosRemision } from "../lib/remision";
-import { FileDown, Printer } from "lucide-react";
+import { abrirRemisionPdf, type DatosRemision } from "../lib/remision";
+import { Printer } from "lucide-react";
 
 const FORM_VACIO = {
   material_id: "",
@@ -242,9 +242,6 @@ export function Movimientos() {
           <div style={{ display: "flex", gap: 8 }}>
             <button type="button" className="btn-secundario" onClick={() => abrirRemisionPdf(ultimaRemision)}>
               <Printer size={14} /> Ver / Imprimir
-            </button>
-            <button type="button" className="btn-secundario" onClick={() => descargarRemisionPdf(ultimaRemision)}>
-              <FileDown size={14} /> Descargar PDF
             </button>
           </div>
         </div>
