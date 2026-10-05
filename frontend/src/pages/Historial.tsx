@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../api/supabaseClient";
 import { mapMovimientoJoin } from "../api/movimientos";
 import type { Movimiento } from "../api/types";
-import { money } from "../lib/labels";
+import { money, textoUbicacionMovimiento } from "../lib/labels";
 import { Paginacion } from "../components/Paginacion";
 import { usePaginacion } from "../hooks/usePaginacion";
 import { Modal } from "../components/Modal";
@@ -153,7 +153,7 @@ export function Historial() {
                     <td>{money(m.cantidad)}</td>
                     <td>{m.solicitante_nombre || "—"}</td>
                     <td>{m.observaciones || "—"}</td>
-                    <td>{m.ubicacion || "—"}</td>
+                    <td>{textoUbicacionMovimiento(m)}</td>
                     <td>
                       <div style={{ display: "flex", gap: 6 }}>
                         {m.foto && (

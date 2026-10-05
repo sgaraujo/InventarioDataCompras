@@ -1,5 +1,5 @@
 import type { MovimientoReciente } from "../api/types";
-import { money } from "../lib/labels";
+import { money, textoUbicacionMovimiento } from "../lib/labels";
 
 interface Props {
   movimientos: MovimientoReciente[];
@@ -52,7 +52,7 @@ export function PanelMovimientosRecientes({ movimientos, cargando, error }: Prop
                   </td>
                   <td>{money(m.cantidad)}</td>
                   <td>{m.solicitante_nombre || "—"}</td>
-                  <td>{m.ubicacion || "—"}</td>
+                  <td>{textoUbicacionMovimiento(m)}</td>
                 </tr>
               ))
             )}

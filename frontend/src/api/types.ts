@@ -105,9 +105,16 @@ export interface Movimiento {
   adjunto: string | null;
   acta_entrega: string | null;
   observaciones: string | null;
-  // Solo en Salida -- a donde quedo el material. Si se diligencia, actualiza
-  // tambien la ubicacion de la referencia (o del material) de una vez.
+  // Solo en Salida -- a donde quedo el material. Si la salida es de una
+  // referencia puntual, actualiza tambien su ubicacion real de una vez; si es
+  // de un material sin referencias, solo queda registrado aca (no se
+  // sobreescribe la ubicacion base del material -- ver ubicacion_origen).
   ubicacion: string | null;
+  // Solo se llena cuando la salida es de un material SIN referencias: la
+  // ubicacion que tenia el material antes de esta salida, para poder mostrar
+  // "De X a Y" en Historial/Ultimos movimientos sin depender de que la
+  // ubicacion del material no cambie despues.
+  ubicacion_origen: string | null;
   registrado_por: string;
   creado_en: string;
 }
@@ -122,6 +129,7 @@ export interface MovimientoReciente {
   material_descripcion: string;
   solicitante_nombre: string | null;
   ubicacion: string | null;
+  ubicacion_origen: string | null;
 }
 
 // Resultado de la funcion RPC resumen_movimientos_mensual() -- entradas y
