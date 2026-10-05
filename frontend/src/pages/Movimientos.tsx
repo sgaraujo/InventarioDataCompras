@@ -40,6 +40,12 @@ export function Movimientos() {
   const [nuevoSolicitante, setNuevoSolicitante] = useState("");
   const [creandoSolicitante, setCreandoSolicitante] = useState(false);
   const [ultimaRemision, setUltimaRemision] = useState<DatosRemision | null>(null);
+  // Solo para Entrada de un material con referencias: en vez de obligar a
+  // repetir el formulario completo por cada referencia, se arma esta lista
+  // (referencia + cantidad) y se registran todas de una vez al enviar.
+  const [lineasReferencia, setLineasReferencia] = useState<{ referencia_id: number; codigo: string; cantidad: string }[]>(
+    []
+  );
 
   async function cargarMateriales() {
     const { data } = await supabase
@@ -74,6 +80,7 @@ export function Movimientos() {
     setNuevoSolicitante("");
     setMensaje(null);
     setUltimaRemision(null);
+    setLineasReferencia([]);
     setMostrarForm(true);
   }
 
@@ -105,6 +112,7 @@ export function Movimientos() {
     setReferenciasDelMaterial([]);
     setNuevoSolicitante("");
     setMensaje(null);
+    setLineasReferencia([]);
   }
 
   const materialSeleccionado = materiales.find((m) => String(m.id) === form.material_id);
@@ -117,6 +125,7 @@ export function Movimientos() {
   async function seleccionarMaterial(id: string) {
     const mat = materiales.find((m) => String(m.id) === id);
     setForm((f) => ({ ...f, material_id: id, referencia_id: "", ubicacion: "" }));
+    setLineasReferencia([]);
     if (!mat?.maneja_referencias) {
       setReferenciasDelMaterial([]);
       return;
@@ -134,6 +143,30 @@ export function Movimientos() {
   const referenciasCandidatas = referenciasDelMaterial.filter((r) =>
     form.tipo === "salida" ? r.stock_disponible > 0 : true
   );
+  const entradaMultiReferencia = form.tipo === "entrada" && Boolean(materialSeleccionado?.maneja_referencias);
+
+  // Agrega (o actualiza si ya estaba) la referencia+cantidad elegida en la
+  // lista de la entrada, y limpia los campos para elegir la siguiente.
+  function agregarLineaReferencia() {
+    if (!form.referencia_id || !form.cantidad) return;
+    const cantidadNum = Number(form.cantidad);
+    if (!(cantidadNum > 0)) return;
+    const refId = Number(form.referencia_id);
+    const ref = referenciasDelMaterial.find((r) => r.id === refId);
+    if (!ref) return;
+    setLineasReferencia((prev) => {
+      const existe = prev.some((l) => l.referencia_id === refId);
+      if (existe) {
+        return prev.map((l) => (l.referencia_id === refId ? { ...l, cantidad: form.cantidad } : l));
+      }
+      return [...prev, { referencia_id: refId, codigo: ref.codigo, cantidad: form.cantidad }];
+    });
+    setForm((f) => ({ ...f, referencia_id: "", cantidad: "" }));
+  }
+
+  function quitarLineaReferencia(refId: number) {
+    setLineasReferencia((prev) => prev.filter((l) => l.referencia_id !== refId));
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -141,21 +174,32 @@ export function Movimientos() {
       setMensaje({ texto: "Selecciona un material de la lista.", tipo: "error" });
       return;
     }
-    if (materialSeleccionado?.maneja_referencias && !form.referencia_id) {
-      setMensaje({ texto: "Selecciona cuál referencia se está moviendo.", tipo: "error" });
-      return;
-    }
-    if (materialSeleccionado?.maneja_referencias && referenciaSeleccionada) {
-      if (form.tipo === "salida" && Number(form.cantidad) > referenciaSeleccionada.stock_disponible) {
-        setMensaje({
-          texto: `No hay suficiente stock en "${referenciaSeleccionada.codigo}" (disponible: ${referenciaSeleccionada.stock_disponible}).`,
-          tipo: "error",
-        });
+    if (entradaMultiReferencia) {
+      if (lineasReferencia.length === 0) {
+        setMensaje({ texto: "Agrega al menos una referencia con su cantidad.", tipo: "error" });
         return;
       }
-    } else if (form.tipo === "salida" && materialSeleccionado && Number(form.cantidad) > materialSeleccionado.stock_actual) {
-      setMensaje({ texto: `No hay suficiente stock (disponible: ${materialSeleccionado.stock_actual}).`, tipo: "error" });
-      return;
+    } else {
+      if (materialSeleccionado?.maneja_referencias && !form.referencia_id) {
+        setMensaje({ texto: "Selecciona cuál referencia se está moviendo.", tipo: "error" });
+        return;
+      }
+      if (materialSeleccionado?.maneja_referencias && referenciaSeleccionada) {
+        if (form.tipo === "salida" && Number(form.cantidad) > referenciaSeleccionada.stock_disponible) {
+          setMensaje({
+            texto: `No hay suficiente stock en "${referenciaSeleccionada.codigo}" (disponible: ${referenciaSeleccionada.stock_disponible}).`,
+            tipo: "error",
+          });
+          return;
+        }
+      } else if (
+        form.tipo === "salida" &&
+        materialSeleccionado &&
+        Number(form.cantidad) > materialSeleccionado.stock_actual
+      ) {
+        setMensaje({ texto: `No hay suficiente stock (disponible: ${materialSeleccionado.stock_actual}).`, tipo: "error" });
+        return;
+      }
     }
     setEnviando(true);
     setMensaje(null);
@@ -166,53 +210,77 @@ export function Movimientos() {
       ]);
       const actaUrl = actaEntrega ? await subirEvidencia("movimientos", actaEntrega) : undefined;
 
-      const { data, error } = await supabase
-        .from("movimientos")
-        .insert({
-          material_id: Number(form.material_id),
-          tipo: form.tipo,
-          cantidad: Number(form.cantidad),
-          referencia_id: form.referencia_id ? Number(form.referencia_id) : null,
-          solicitante_id: form.solicitante_id ? Number(form.solicitante_id) : null,
-          observaciones: form.observaciones || null,
-          ubicacion: form.tipo === "salida" ? form.ubicacion.trim() || null : null,
-          ...(fotoUrl ? { foto: fotoUrl } : {}),
-          ...(adjuntoUrl ? { adjunto: adjuntoUrl } : {}),
-          ...(actaUrl ? { acta_entrega: actaUrl } : {}),
-        })
-        .select("id, creado_en")
-        .single();
-      if (error) throw error;
-
-      if (form.tipo === "salida") {
-        const solicitanteNombre = solicitantes.find((s) => String(s.id) === form.solicitante_id)?.nombre || "—";
-        const fecha = new Intl.DateTimeFormat("es-CO", {
-          timeZone: "America/Bogota",
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-        }).format(new Date(data.creado_en));
-        setUltimaRemision({
-          numero: `REM-${String(data.id).padStart(6, "0")}`,
-          fecha,
-          empresa: materialSeleccionado?.empresa_nombre ?? "—",
-          centroCosto: materialSeleccionado?.centro_costo_nombre ?? "—",
-          solicitante: solicitanteNombre,
-          destino:
-            form.ubicacion.trim() || referenciaSeleccionada?.ubicacion || materialSeleccionado?.ubicacion || "—",
-          motivo: form.observaciones || "—",
-          codigo: materialSeleccionado?.codigo ?? "—",
-          descripcion: materialSeleccionado?.descripcion ?? "—",
-          cantidad: money(Number(form.cantidad)),
-          serieLote: referenciaSeleccionada?.codigo ?? "—",
-        });
-      } else {
+      if (entradaMultiReferencia) {
+        const { error } = await supabase.from("movimientos").insert(
+          lineasReferencia.map((l) => ({
+            material_id: Number(form.material_id),
+            tipo: "entrada" as const,
+            cantidad: Number(l.cantidad),
+            referencia_id: l.referencia_id,
+            solicitante_id: form.solicitante_id ? Number(form.solicitante_id) : null,
+            observaciones: form.observaciones || null,
+            ...(fotoUrl ? { foto: fotoUrl } : {}),
+            ...(adjuntoUrl ? { adjunto: adjuntoUrl } : {}),
+            ...(actaUrl ? { acta_entrega: actaUrl } : {}),
+          }))
+        );
+        if (error) throw error;
         setUltimaRemision(null);
+      } else {
+        const { data, error } = await supabase
+          .from("movimientos")
+          .insert({
+            material_id: Number(form.material_id),
+            tipo: form.tipo,
+            cantidad: Number(form.cantidad),
+            referencia_id: form.referencia_id ? Number(form.referencia_id) : null,
+            solicitante_id: form.solicitante_id ? Number(form.solicitante_id) : null,
+            observaciones: form.observaciones || null,
+            ubicacion: form.tipo === "salida" ? form.ubicacion.trim() || null : null,
+            ...(fotoUrl ? { foto: fotoUrl } : {}),
+            ...(adjuntoUrl ? { adjunto: adjuntoUrl } : {}),
+            ...(actaUrl ? { acta_entrega: actaUrl } : {}),
+          })
+          .select("id, creado_en")
+          .single();
+        if (error) throw error;
+
+        if (form.tipo === "salida") {
+          const solicitanteNombre = solicitantes.find((s) => String(s.id) === form.solicitante_id)?.nombre || "—";
+          const fecha = new Intl.DateTimeFormat("es-CO", {
+            timeZone: "America/Bogota",
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          }).format(new Date(data.creado_en));
+          setUltimaRemision({
+            numero: `REM-${String(data.id).padStart(6, "0")}`,
+            fecha,
+            empresa: materialSeleccionado?.empresa_nombre ?? "—",
+            centroCosto: materialSeleccionado?.centro_costo_nombre ?? "—",
+            solicitante: solicitanteNombre,
+            destino:
+              form.ubicacion.trim() || referenciaSeleccionada?.ubicacion || materialSeleccionado?.ubicacion || "—",
+            motivo: form.observaciones || "—",
+            codigo: materialSeleccionado?.codigo ?? "—",
+            descripcion: materialSeleccionado?.descripcion ?? "—",
+            cantidad: money(Number(form.cantidad)),
+            serieLote: referenciaSeleccionada?.codigo ?? "—",
+          });
+        } else {
+          setUltimaRemision(null);
+        }
       }
 
+      const totalLineas = lineasReferencia.length;
       cerrarForm();
       await Promise.all([cargarMateriales(), cargarRecientes()]);
-      setMensaje({ texto: "Movimiento registrado correctamente.", tipo: "ok" });
+      setMensaje({
+        texto: entradaMultiReferencia
+          ? `Se registraron ${totalLineas} entradas correctamente.`
+          : "Movimiento registrado correctamente.",
+        tipo: "ok",
+      });
     } catch (err) {
       setMensaje({ texto: err instanceof Error ? err.message : "Error al registrar el movimiento", tipo: "error" });
       setEnviando(false);
@@ -258,64 +326,133 @@ export function Movimientos() {
               foto ||
               adjunto ||
               actaEntrega ||
-              nuevoSolicitante.trim()
+              nuevoSolicitante.trim() ||
+              lineasReferencia.length > 0
           )}
         >
           <form className="form-grid" onSubmit={handleSubmit}>
             <ComboMaterial materiales={materiales} materialId={form.material_id} onSeleccionar={seleccionarMaterial} />
-            {materialSeleccionado?.maneja_referencias && (
-              <div>
-                <label>Referencia</label>
-                <select
-                  required
-                  value={form.referencia_id}
-                  onChange={(e) => setForm({ ...form, referencia_id: e.target.value, ubicacion: "" })}
-                >
-                  <option value="">{cargandoReferencias ? "Cargando..." : "Selecciona una referencia"}</option>
-                  {referenciasCandidatas.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.codigo}
-                      {r.ubicacion ? ` — ${r.ubicacion}` : ""}
-                      {form.tipo === "salida" ? ` (disponible: ${r.stock_disponible})` : ""}
-                    </option>
-                  ))}
-                </select>
+            {entradaMultiReferencia ? (
+              <div className="full">
+                <label>Referencias</label>
+                <div className="tags-input">
+                  <select
+                    value={form.referencia_id}
+                    onChange={(e) => setForm({ ...form, referencia_id: e.target.value })}
+                  >
+                    <option value="">{cargandoReferencias ? "Cargando..." : "Selecciona una referencia"}</option>
+                    {referenciasDelMaterial.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.codigo}
+                        {r.ubicacion ? ` — ${r.ubicacion}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    placeholder="Cantidad"
+                    value={form.cantidad}
+                    onWheel={(e) => e.currentTarget.blur()}
+                    onChange={(e) => setForm({ ...form, cantidad: e.target.value })}
+                  />
+                  <button
+                    type="button"
+                    className="btn-secundario"
+                    disabled={!form.referencia_id || !form.cantidad}
+                    onClick={agregarLineaReferencia}
+                  >
+                    + Agregar
+                  </button>
+                </div>
                 {!cargandoReferencias && referenciasDelMaterial.length === 0 && (
                   <div className="stock-aviso" style={{ marginTop: 8 }}>
                     Este material no tiene ninguna referencia registrada todavía -- agrégalas editando el material.
                   </div>
                 )}
-                {!cargandoReferencias && referenciasDelMaterial.length > 0 && referenciasCandidatas.length === 0 && (
-                  <div className="stock-aviso" style={{ marginTop: 8 }}>
-                    Tiene {referenciasDelMaterial.length} referencia(s) registrada(s), pero ninguna con stock
-                    disponible para sacar -- registra primero una Entrada.
+                {lineasReferencia.length > 0 ? (
+                  <div className="tags-lista" style={{ marginTop: 8 }}>
+                    {lineasReferencia.map((l) => (
+                      <span key={l.referencia_id} className="tag-chip">
+                        {l.codigo} — {l.cantidad}
+                        <button
+                          type="button"
+                          onClick={() => quitarLineaReferencia(l.referencia_id)}
+                          aria-label={`Quitar ${l.codigo}`}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
                   </div>
+                ) : (
+                  !cargandoReferencias &&
+                  referenciasDelMaterial.length > 0 && (
+                    <div className="stock-aviso" style={{ marginTop: 8 }}>
+                      Agrega al menos una referencia con su cantidad antes de registrar.
+                    </div>
+                  )
                 )}
               </div>
-            )}
-            <div>
-              <label>Cantidad</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0.01"
-                required
-                value={form.cantidad}
-                onWheel={(e) => e.currentTarget.blur()}
-                onChange={(e) => setForm({ ...form, cantidad: e.target.value })}
-              />
-              {referenciaSeleccionada ? (
-                <div className="stock-aviso" style={{ marginTop: 6 }}>
-                  Disponible en esta referencia: {referenciaSeleccionada.stock_disponible}
-                </div>
-              ) : (
-                materialSeleccionado && (
-                  <div className="stock-aviso" style={{ marginTop: 6 }}>
-                    Stock actual: {materialSeleccionado.stock_actual}
+            ) : (
+              <>
+                {materialSeleccionado?.maneja_referencias && (
+                  <div>
+                    <label>Referencia</label>
+                    <select
+                      required
+                      value={form.referencia_id}
+                      onChange={(e) => setForm({ ...form, referencia_id: e.target.value, ubicacion: "" })}
+                    >
+                      <option value="">{cargandoReferencias ? "Cargando..." : "Selecciona una referencia"}</option>
+                      {referenciasCandidatas.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.codigo}
+                          {r.ubicacion ? ` — ${r.ubicacion}` : ""}
+                          {form.tipo === "salida" ? ` (disponible: ${r.stock_disponible})` : ""}
+                        </option>
+                      ))}
+                    </select>
+                    {!cargandoReferencias && referenciasDelMaterial.length === 0 && (
+                      <div className="stock-aviso" style={{ marginTop: 8 }}>
+                        Este material no tiene ninguna referencia registrada todavía -- agrégalas editando el
+                        material.
+                      </div>
+                    )}
+                    {!cargandoReferencias && referenciasDelMaterial.length > 0 && referenciasCandidatas.length === 0 && (
+                      <div className="stock-aviso" style={{ marginTop: 8 }}>
+                        Tiene {referenciasDelMaterial.length} referencia(s) registrada(s), pero ninguna con stock
+                        disponible para sacar -- registra primero una Entrada.
+                      </div>
+                    )}
                   </div>
-                )
-              )}
-            </div>
+                )}
+                <div>
+                  <label>Cantidad</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    required
+                    value={form.cantidad}
+                    onWheel={(e) => e.currentTarget.blur()}
+                    onChange={(e) => setForm({ ...form, cantidad: e.target.value })}
+                  />
+                  {referenciaSeleccionada ? (
+                    <div className="stock-aviso" style={{ marginTop: 6 }}>
+                      Disponible en esta referencia: {referenciaSeleccionada.stock_disponible}
+                    </div>
+                  ) : (
+                    materialSeleccionado && (
+                      <div className="stock-aviso" style={{ marginTop: 6 }}>
+                        Stock actual: {materialSeleccionado.stock_actual}
+                      </div>
+                    )
+                  )}
+                </div>
+              </>
+            )}
             {form.tipo === "salida" && (
               <div>
                 <label>Nueva ubicación (opcional)</label>
@@ -387,7 +524,7 @@ export function Movimientos() {
                 <input type="file" accept="image/*" onChange={(e) => setActaEntrega(e.target.files?.[0] ?? null)} />
               </div>
             )}
-            <button type="submit" disabled={enviando}>
+            <button type="submit" disabled={enviando || (entradaMultiReferencia && lineasReferencia.length === 0)}>
               {enviando ? "Registrando..." : form.tipo === "entrada" ? "Registrar entrada" : "Registrar salida"}
             </button>
             <button type="button" className="btn-secundario" onClick={cerrarForm}>
