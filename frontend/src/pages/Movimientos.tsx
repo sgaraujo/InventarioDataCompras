@@ -304,6 +304,7 @@ export function Movimientos() {
                 min="0.01"
                 required
                 value={form.cantidad}
+                onWheel={(e) => e.currentTarget.blur()}
                 onChange={(e) => setForm({ ...form, cantidad: e.target.value })}
               />
               {referenciaSeleccionada ? (

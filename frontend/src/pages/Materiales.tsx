@@ -609,6 +609,7 @@ export function Materiales() {
                 placeholder="Precio de adquisición por unidad"
                 value={form.precio_unitario}
                 disabled={!puedeEditarPrecio}
+                onWheel={(e) => e.currentTarget.blur()}
                 onChange={(e) => setForm({ ...form, precio_unitario: e.target.value })}
               />
               {!puedeEditarPrecio && (
@@ -945,6 +946,7 @@ export function Materiales() {
                             defaultValue={r.precio_unitario ?? ""}
                             placeholder="—"
                             style={{ width: 78 }}
+                            onWheel={(e) => e.currentTarget.blur()}
                             onBlur={(e) => actualizarPrecioReferencia(r, e.target.value)}
                           />
                         ) : r.precio_unitario != null ? (
