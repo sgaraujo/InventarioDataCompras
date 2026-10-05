@@ -85,6 +85,11 @@ export function Materiales() {
   const [mostrarForm, setMostrarForm] = useState(false);
   const editando = form.id !== null;
   const formInicialRef = useRef(FORM_VACIO);
+  // Para materiales con referencias, materiales.precio_unitario no aplica
+  // (cada referencia tiene el suyo) -- esto guarda la suma de los valores de
+  // todas las referencias de cada material, para la columna "Valor total"
+  // del listado. null = ninguna de sus referencias tiene precio todavia.
+  const [valorReferenciasPorMaterial, setValorReferenciasPorMaterial] = useState<Record<number, number | null>>({});
 
   async function cargarMateriales() {
     setCargando(true);
@@ -104,8 +109,22 @@ export function Materiales() {
     setCargando(false);
   }
 
+  async function cargarValorReferencias() {
+    const { data } = await supabase.from("material_referencias_estado").select("material_id, valor_total");
+    const acc: Record<number, number | null> = {};
+    for (const r of (data ?? []) as { material_id: number; valor_total: number | null }[]) {
+      if (r.valor_total == null) {
+        if (!(r.material_id in acc)) acc[r.material_id] = null;
+        continue;
+      }
+      acc[r.material_id] = (acc[r.material_id] ?? 0) + r.valor_total;
+    }
+    setValorReferenciasPorMaterial(acc);
+  }
+
   useEffect(() => {
     cargarMateriales();
+    cargarValorReferencias();
     supabase
       .from("empresas")
       .select("*")
@@ -281,7 +300,11 @@ export function Materiales() {
         centro_costo_id: form.centro_costo_id ? Number(form.centro_costo_id) : null,
         descripcion: form.descripcion,
         ubicacion: form.ubicacion.trim() || null,
-        precio_unitario: form.precio_unitario.trim() === "" ? null : Number(form.precio_unitario),
+        // Si maneja referencias, el precio del material no aplica -- se
+        // limpia aqui para que no quede un valor viejo sin usar (el total se
+        // calcula sumando las referencias, ver cargarValorReferencias()).
+        precio_unitario:
+          form.maneja_referencias || form.precio_unitario.trim() === "" ? null : Number(form.precio_unitario),
         maneja_referencias: form.maneja_referencias,
         ...(fotoUrl ? { foto: fotoUrl } : {}),
         ...(editando ? { activo: form.activo } : {}),
@@ -461,6 +484,7 @@ export function Materiales() {
           : r
       )
     );
+    cargarValorReferencias();
   }
 
   return (
@@ -600,24 +624,26 @@ export function Materiales() {
                 onChange={(e) => setForm({ ...form, ubicacion: e.target.value })}
               />
             </div>
-            <div>
-              <label>Precio unitario (opcional)</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="Precio de adquisición por unidad"
-                value={form.precio_unitario}
-                disabled={!puedeEditarPrecio}
-                onWheel={(e) => e.currentTarget.blur()}
-                onChange={(e) => setForm({ ...form, precio_unitario: e.target.value })}
-              />
-              {!puedeEditarPrecio && (
-                <div className="stock-aviso" style={{ marginTop: 6 }}>
-                  Solo un administrador puede cambiar el precio.
-                </div>
-              )}
-            </div>
+            {!form.maneja_referencias && (
+              <div>
+                <label>Precio unitario (opcional)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="Precio de adquisición por unidad"
+                  value={form.precio_unitario}
+                  disabled={!puedeEditarPrecio}
+                  onWheel={(e) => e.currentTarget.blur()}
+                  onChange={(e) => setForm({ ...form, precio_unitario: e.target.value })}
+                />
+                {!puedeEditarPrecio && (
+                  <div className="stock-aviso" style={{ marginTop: 6 }}>
+                    Solo un administrador puede cambiar el precio.
+                  </div>
+                )}
+              </div>
+            )}
             <div className="full">
               <div className="checkbox-campo">
                 <input
@@ -632,6 +658,10 @@ export function Materiales() {
               </div>
               {form.maneja_referencias && (
                 <div style={{ marginTop: 10 }}>
+                  <div className="stock-aviso" style={{ marginBottom: 8 }}>
+                    El precio se pone por cada referencia (en "Ver detalle"), no aquí -- cada unidad puede haber
+                    costado distinto.
+                  </div>
                   <div className="tags-input">
                     <input
                       type="text"
@@ -807,8 +837,21 @@ export function Materiales() {
                     <td>{m.centro_costo_nombre || "—"}</td>
                     <td>{m.ubicacion || "—"}</td>
                     <td>{money(m.stock_actual)}</td>
-                    <td>{m.precio_unitario != null ? `$${money(m.precio_unitario)}` : "—"}</td>
-                    <td>{m.precio_unitario != null ? `$${money(m.precio_unitario * m.stock_actual)}` : "—"}</td>
+                    {m.maneja_referencias ? (
+                      <>
+                        <td>Varios</td>
+                        <td>
+                          {valorReferenciasPorMaterial[m.id] != null
+                            ? `$${money(valorReferenciasPorMaterial[m.id]!)}`
+                            : "—"}
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td>{m.precio_unitario != null ? `$${money(m.precio_unitario)}` : "—"}</td>
+                        <td>{m.precio_unitario != null ? `$${money(m.precio_unitario * m.stock_actual)}` : "—"}</td>
+                      </>
+                    )}
                     <td>
                       <span className={`badge ${m.stock_actual > 0 ? "ok" : "sin_existencias"}`}>
                         {m.stock_actual > 0 ? "Con stock" : "Sin existencias"}
