@@ -874,6 +874,7 @@ export function Materiales() {
       {verReferenciasDe && !fotoAmpliada && !confirmandoBorrarDoc && (
         <Modal
           titulo={`Referencias de "${verReferenciasDe.descripcion}"`}
+          ancho
           onClose={() => {
             setVerReferenciasDe(null);
             setErrorRef(null);
@@ -887,8 +888,8 @@ export function Materiales() {
                   <th>Código</th>
                   <th>Ubicación</th>
                   <th>Disponible</th>
-                  <th>Precio unit.</th>
-                  <th>Valor total</th>
+                  <th>Precio</th>
+                  <th>Total</th>
                   <th>Documentos</th>
                   {editable && <th></th>}
                 </tr>
@@ -943,7 +944,7 @@ export function Materiales() {
                             key={r.id}
                             defaultValue={r.precio_unitario ?? ""}
                             placeholder="—"
-                            style={{ width: 100 }}
+                            style={{ width: 78 }}
                             onBlur={(e) => actualizarPrecioReferencia(r, e.target.value)}
                           />
                         ) : r.precio_unitario != null ? (

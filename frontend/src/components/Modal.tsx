@@ -12,9 +12,12 @@ interface ModalProps {
   // escrito que todavia no se envio); los modales de solo lectura (ver una
   // foto, un detalle) simplemente no lo pasan y se cierran directo.
   confirmarCierre?: boolean;
+  // Para contenido mas ancho que el formulario tipico (ej. una tabla con
+  // varias columnas) -- evita que haya que hacer scroll horizontal.
+  ancho?: boolean;
 }
 
-export function Modal({ titulo, onClose, children, confirmarCierre }: ModalProps) {
+export function Modal({ titulo, onClose, children, confirmarCierre, ancho }: ModalProps) {
   const [pidiendoConfirmacion, setPidiendoConfirmacion] = useState(false);
 
   function intentarCerrar() {
@@ -47,7 +50,7 @@ export function Modal({ titulo, onClose, children, confirmarCierre }: ModalProps
 
   return createPortal(
     <div className="modal-backdrop" onClick={intentarCerrar}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className={`modal-content${ancho ? " modal-content--ancho" : ""}`} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>{titulo}</h2>
           <button type="button" className="modal-cerrar" onClick={intentarCerrar} aria-label="Cerrar">

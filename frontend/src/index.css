@@ -1040,6 +1040,10 @@ form.form-grid button.btn-secundario:hover {
   overflow-y: auto;
 }
 
+.modal-content--ancho {
+  max-width: 960px;
+}
+
 .modal-header {
   display: flex;
   align-items: center;
