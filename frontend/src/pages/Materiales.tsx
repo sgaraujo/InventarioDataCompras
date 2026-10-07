@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { supabase } from "../api/supabaseClient";
 import { borrarEvidencia, subirEvidencia } from "../api/storage";
 import type {
+  Categoria,
   CentroCosto,
   Empresa,
   Material,
@@ -23,6 +24,7 @@ const FORM_VACIO = {
   id: null as number | null,
   empresa_id: "",
   centro_costo_id: "",
+  categoria_id: "",
   descripcion: "",
   ubicacion: "",
   precio_unitario: "",
@@ -58,6 +60,7 @@ export function Materiales() {
   const [materiales, setMateriales] = useState<Material[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [centrosCosto, setCentrosCosto] = useState<CentroCosto[]>([]);
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [cargando, setCargando] = useState(true);
 
   const [form, setForm] = useState(FORM_VACIO);
@@ -95,7 +98,7 @@ export function Materiales() {
     setCargando(true);
     const { data, error } = await supabase
       .from("materiales")
-      .select("*, empresas(nombre), centros_costo(nombre)")
+      .select("*, empresas(nombre), centros_costo(nombre), categorias(nombre)")
       .order("id", { ascending: false });
     if (!error && data) {
       setMateriales(
@@ -103,6 +106,7 @@ export function Materiales() {
           ...m,
           empresa_nombre: (m.empresas as { nombre: string } | null)?.nombre ?? "—",
           centro_costo_nombre: (m.centros_costo as { nombre: string } | null)?.nombre ?? null,
+          categoria_nombre: (m.categorias as { nombre: string } | null)?.nombre ?? null,
         })) as Material[]
       );
     }
@@ -135,6 +139,11 @@ export function Materiales() {
       .select("*")
       .order("nombre")
       .then(({ data }) => setCentrosCosto((data as CentroCosto[]) ?? []));
+    supabase
+      .from("categorias")
+      .select("*")
+      .order("nombre")
+      .then(({ data }) => setCategorias((data as Categoria[]) ?? []));
   }, []);
 
   const materialesFiltrados = materiales.filter((m) => {
@@ -176,6 +185,7 @@ export function Materiales() {
       id: m.id,
       empresa_id: String(m.empresa_id),
       centro_costo_id: m.centro_costo_id ? String(m.centro_costo_id) : "",
+      categoria_id: m.categoria_id ? String(m.categoria_id) : "",
       descripcion: m.descripcion,
       ubicacion: m.ubicacion ?? "",
       precio_unitario: m.precio_unitario != null ? String(m.precio_unitario) : "",
@@ -298,6 +308,7 @@ export function Materiales() {
       const cuerpo = {
         empresa_id: Number(form.empresa_id),
         centro_costo_id: form.centro_costo_id ? Number(form.centro_costo_id) : null,
+        categoria_id: Number(form.categoria_id),
         descripcion: form.descripcion,
         ubicacion: form.ubicacion.trim() || null,
         // Si maneja referencias, el precio del material no aplica -- se
@@ -606,6 +617,21 @@ export function Materiales() {
                 </div>
               )}
             </div>
+            <div>
+              <label>Categoría</label>
+              <select
+                required
+                value={form.categoria_id}
+                onChange={(e) => setForm({ ...form, categoria_id: e.target.value })}
+              >
+                <option value="">Selecciona una categoría</option>
+                {categorias.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div className="full">
               <label>Descripción</label>
               <input
@@ -779,6 +805,7 @@ export function Materiales() {
                 <th>Descripción</th>
                 <th>Empresa</th>
                 <th>Centro de costo</th>
+                <th>Categoría</th>
                 <th>Ubicación</th>
                 <th>Stock actual</th>
                 <th>Precio unit.</th>
@@ -790,13 +817,13 @@ export function Materiales() {
             <tbody>
               {cargando ? (
                 <tr>
-                  <td colSpan={editable ? 11 : 10} className="empty-state">
+                  <td colSpan={editable ? 12 : 11} className="empty-state">
                     Cargando...
                   </td>
                 </tr>
               ) : pageItems.length === 0 ? (
                 <tr>
-                  <td colSpan={editable ? 11 : 10} className="empty-state">
+                  <td colSpan={editable ? 12 : 11} className="empty-state">
                     No se encontraron materiales con ese filtro.
                   </td>
                 </tr>
@@ -835,6 +862,7 @@ export function Materiales() {
                     </td>
                     <td>{m.empresa_nombre}</td>
                     <td>{m.centro_costo_nombre || "—"}</td>
+                    <td>{m.categoria_nombre || "—"}</td>
                     <td>{m.ubicacion || "—"}</td>
                     <td>{money(m.stock_actual)}</td>
                     {m.maneja_referencias ? (

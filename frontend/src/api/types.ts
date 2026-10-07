@@ -33,6 +33,15 @@ export interface Solicitante {
   creado_en: string;
 }
 
+// Catalogo de categorias de material (Equipos, Herramienta, Consumibles,
+// Activos Fijos...). Cualquiera las ve, pero solo admin puede crear una
+// nueva (ver RLS en 0023_categorias.sql).
+export interface Categoria {
+  id: number;
+  nombre: string;
+  creado_en: string;
+}
+
 export interface Material {
   id: number;
   codigo: string;
@@ -40,6 +49,8 @@ export interface Material {
   empresa_nombre: string;
   centro_costo_id: number | null;
   centro_costo_nombre: string | null;
+  categoria_id: number | null;
+  categoria_nombre: string | null;
   descripcion: string;
   ubicacion: string | null;
   // Si es true, este material agrupa varias unidades/referencias

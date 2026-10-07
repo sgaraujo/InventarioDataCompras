@@ -8,6 +8,7 @@ import { Materiales } from "./pages/Materiales";
 import { Movimientos } from "./pages/Movimientos";
 import { Historial } from "./pages/Historial";
 import { Usuarios } from "./pages/Usuarios";
+import { Categorias } from "./pages/Categorias";
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
             <Route element={<Layout />}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/materiales" element={<Materiales />} />
+              <Route path="/categorias" element={<Categorias />} />
               <Route path="/historial" element={<Historial />} />
               <Route element={<RoleGate roles={["admin", "almacenista"]} />}>
                 <Route path="/movimientos" element={<Movimientos />} />
