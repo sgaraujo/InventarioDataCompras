@@ -76,29 +76,31 @@ export function Categorias() {
               + Nueva categoría
             </button>
           ) : (
-            <form className="tags-input" onSubmit={handleSubmit}>
-              <input
-                type="text"
-                required
-                autoFocus
-                placeholder="Nombre de la categoría"
-                value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
-              />
-              <button type="submit" disabled={guardando || !nombre.trim()}>
-                {guardando ? "Guardando..." : "Guardar"}
-              </button>
-              <button
-                type="button"
-                className="btn-secundario"
-                onClick={() => {
-                  setMostrarForm(false);
-                  setNombre("");
-                  setMensaje(null);
-                }}
-              >
-                Cancelar
-              </button>
+            <form className="form-grid" onSubmit={handleSubmit}>
+              <div className="full tags-input">
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  placeholder="Nombre de la categoría"
+                  value={nombre}
+                  onChange={(e) => setNombre(e.target.value)}
+                />
+                <button type="submit" disabled={guardando || !nombre.trim()}>
+                  {guardando ? "Guardando..." : "Guardar"}
+                </button>
+                <button
+                  type="button"
+                  className="btn-secundario"
+                  onClick={() => {
+                    setMostrarForm(false);
+                    setNombre("");
+                    setMensaje(null);
+                  }}
+                >
+                  Cancelar
+                </button>
+              </div>
             </form>
           )}
           {mensaje && <div className={`mensaje-form ${mensaje.tipo}`}>{mensaje.texto}</div>}
