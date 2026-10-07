@@ -3,6 +3,7 @@ import { supabase } from "../api/supabaseClient";
 import type { Categoria } from "../api/types";
 import { esAdmin } from "../lib/labels";
 import { useAuth } from "../context/AuthContext";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 
 // Catalogo de categorias de material (Equipos, Herramienta, Consumibles,
 // Activos Fijos...). Cualquier rol la ve, pero solo admin puede agregar una
@@ -18,6 +19,7 @@ export function Categorias() {
   const [nombre, setNombre] = useState("");
   const [mensaje, setMensaje] = useState<{ texto: string; tipo: "ok" | "error" } | null>(null);
   const [guardando, setGuardando] = useState(false);
+  const [confirmandoEliminar, setConfirmandoEliminar] = useState<Categoria | null>(null);
 
   async function cargarCategorias() {
     setCargando(true);
@@ -42,6 +44,26 @@ export function Categorias() {
     }
     setNombre("");
     setMostrarForm(false);
+    await cargarCategorias();
+  }
+
+  // El FK materiales.categoria_id (sin ON DELETE) bloquea el borrado si hay
+  // materiales usando esta categoria -- se muestra ese caso con un mensaje
+  // claro en vez del error crudo de postgres.
+  async function eliminarCategoria(c: Categoria) {
+    setConfirmandoEliminar(null);
+    const { error } = await supabase.from("categorias").delete().eq("id", c.id);
+    if (error) {
+      setMensaje({
+        texto:
+          error.code === "23503"
+            ? `No se puede eliminar "${c.nombre}" porque hay materiales usando esta categoría.`
+            : error.message,
+        tipo: "error",
+      });
+      return;
+    }
+    setMensaje({ texto: `Se eliminó "${c.nombre}" correctamente.`, tipo: "ok" });
     await cargarCategorias();
   }
 
@@ -90,18 +112,19 @@ export function Categorias() {
               <tr>
                 <th>Nombre</th>
                 <th>Creada</th>
+                {puedeCrear && <th>Acciones</th>}
               </tr>
             </thead>
             <tbody>
               {cargando ? (
                 <tr>
-                  <td colSpan={2} className="empty-state">
+                  <td colSpan={puedeCrear ? 3 : 2} className="empty-state">
                     Cargando...
                   </td>
                 </tr>
               ) : categorias.length === 0 ? (
                 <tr>
-                  <td colSpan={2} className="empty-state">
+                  <td colSpan={puedeCrear ? 3 : 2} className="empty-state">
                     Todavía no hay categorías.
                   </td>
                 </tr>
@@ -110,6 +133,13 @@ export function Categorias() {
                   <tr key={c.id}>
                     <td>{c.nombre}</td>
                     <td>{new Date(c.creado_en).toLocaleDateString("es-CO")}</td>
+                    {puedeCrear && (
+                      <td>
+                        <button type="button" className="btn-rechazar" onClick={() => setConfirmandoEliminar(c)}>
+                          Eliminar
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))
               )}
@@ -117,6 +147,15 @@ export function Categorias() {
           </table>
         </div>
       </div>
+
+      {confirmandoEliminar && (
+        <ConfirmDialog
+          titulo={`¿Eliminar "${confirmandoEliminar.nombre}"?`}
+          descripcion="Esta acción no se puede deshacer."
+          onConfirmar={() => eliminarCategoria(confirmandoEliminar)}
+          onCancelar={() => setConfirmandoEliminar(null)}
+        />
+      )}
     </section>
   );
 }
