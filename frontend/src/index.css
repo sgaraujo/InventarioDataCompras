@@ -606,6 +606,39 @@ table.tabla tbody tr:hover td:last-child { background: #f7fafa; }
   color: var(--text-muted);
 }
 
+/* Pastillas de filtro por categoria (Materiales) */
+.categoria-pills {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  margin-bottom: 14px;
+}
+
+.categoria-pill {
+  flex: none;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text-muted);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.categoria-pill:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.categoria-pill.active {
+  background: var(--teal);
+  color: #fff;
+  border-color: var(--teal);
+}
+
 /* Filtros movimientos */
 .filtros-mov {
   display: flex;

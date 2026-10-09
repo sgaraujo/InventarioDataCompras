@@ -55,6 +55,7 @@ export function Materiales() {
   const [searchParams, setSearchParams] = useSearchParams();
   const q = (searchParams.get("q") ?? "").toLowerCase();
   const empresaFiltro = searchParams.get("empresa_id") ?? "";
+  const categoriaFiltro = searchParams.get("categoria_id") ?? "";
   const stockFiltro = searchParams.get("stock") ?? ""; // "" | "con" | "sin"
 
   const [materiales, setMateriales] = useState<Material[]>([]);
@@ -148,6 +149,7 @@ export function Materiales() {
 
   const materialesFiltrados = materiales.filter((m) => {
     if (empresaFiltro && String(m.empresa_id) !== empresaFiltro) return false;
+    if (categoriaFiltro && String(m.categoria_id) !== categoriaFiltro) return false;
     if (q && !m.descripcion.toLowerCase().includes(q) && !m.codigo.toLowerCase().includes(q)) return false;
     if (stockFiltro === "con" && Number(m.stock_actual) <= 0) return false;
     if (stockFiltro === "sin" && Number(m.stock_actual) > 0) return false;
@@ -163,6 +165,15 @@ export function Materiales() {
     const next = new URLSearchParams(searchParams);
     if (valor) next.set("empresa_id", valor);
     else next.delete("empresa_id");
+    setSearchParams(next, { replace: true });
+  }
+
+  // Independiente del filtro de empresa -- si eligen las dos, se combinan
+  // (categoria Y empresa), pero cada una filtra sola si la otra esta vacia.
+  function cambiarCategoriaFiltro(valor: string) {
+    const next = new URLSearchParams(searchParams);
+    if (valor) next.set("categoria_id", valor);
+    else next.delete("categoria_id");
     setSearchParams(next, { replace: true });
   }
 
@@ -507,6 +518,26 @@ export function Materiales() {
           </button>
         </div>
       )}
+
+      <div className="categoria-pills">
+        <button
+          type="button"
+          className={`categoria-pill${categoriaFiltro === "" ? " active" : ""}`}
+          onClick={() => cambiarCategoriaFiltro("")}
+        >
+          Todos
+        </button>
+        {categorias.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            className={`categoria-pill${categoriaFiltro === String(c.id) ? " active" : ""}`}
+            onClick={() => cambiarCategoriaFiltro(String(c.id))}
+          >
+            {c.nombre}
+          </button>
+        ))}
+      </div>
 
       <div className="filtros-mov">
         <div>
