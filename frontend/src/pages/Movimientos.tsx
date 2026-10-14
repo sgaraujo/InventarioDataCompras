@@ -7,7 +7,7 @@ import { ComboMaterial } from "../components/ComboMaterial";
 import { PanelMovimientosRecientes } from "../components/PanelMovimientosRecientes";
 import { useMovimientosRecientes } from "../hooks/useMovimientosRecientes";
 import { money } from "../lib/labels";
-import { abrirRemisionPdf, type DatosRemision } from "../lib/remision";
+import { abrirRemisionPdf, type ItemRemision } from "../lib/remision";
 import { Printer } from "lucide-react";
 
 const FORM_VACIO = {
@@ -39,13 +39,19 @@ export function Movimientos() {
   const [cargandoReferencias, setCargandoReferencias] = useState(false);
   const [nuevoSolicitante, setNuevoSolicitante] = useState("");
   const [creandoSolicitante, setCreandoSolicitante] = useState(false);
-  const [ultimaRemision, setUltimaRemision] = useState<DatosRemision | null>(null);
+  const [ultimaRemision, setUltimaRemision] = useState<ItemRemision[] | null>(null);
   // Solo para Entrada de un material con referencias: en vez de obligar a
   // repetir el formulario completo por cada referencia, se arma esta lista
   // (referencia + cantidad) y se registran todas de una vez al enviar.
   const [lineasReferencia, setLineasReferencia] = useState<{ referencia_id: number; codigo: string; cantidad: string }[]>(
     []
   );
+  // Para Salida: carrito de materiales distintos (cada uno con su propia
+  // referencia si aplica) -- se registran todos como movimientos separados
+  // al enviar, y la remision del PDF sale con todos juntos en la tabla.
+  const [lineasSalida, setLineasSalida] = useState<
+    { material_id: number; codigo: string; descripcion: string; referencia_id: number | null; referenciaCodigo: string | null; cantidad: string }[]
+  >([]);
 
   async function cargarMateriales() {
     const { data } = await supabase
@@ -81,6 +87,7 @@ export function Movimientos() {
     setMensaje(null);
     setUltimaRemision(null);
     setLineasReferencia([]);
+    setLineasSalida([]);
     setMostrarForm(true);
   }
 
@@ -113,6 +120,7 @@ export function Movimientos() {
     setNuevoSolicitante("");
     setMensaje(null);
     setLineasReferencia([]);
+    setLineasSalida([]);
   }
 
   const materialSeleccionado = materiales.find((m) => String(m.id) === form.material_id);
@@ -168,39 +176,101 @@ export function Movimientos() {
     setLineasReferencia((prev) => prev.filter((l) => l.referencia_id !== refId));
   }
 
+  const salidaMultiMaterial = form.tipo === "salida";
+
+  // Agrega (o actualiza si el mismo material/referencia ya estaba) la linea
+  // armada en el carrito de la salida, validando stock contra lo que de
+  // verdad hay disponible, y limpia los campos para elegir el siguiente
+  // material.
+  function agregarLineaSalida() {
+    if (!materialSeleccionado) return;
+    const cantidadNum = Number(form.cantidad);
+    if (!(cantidadNum > 0)) return;
+
+    if (materialSeleccionado.maneja_referencias) {
+      if (!form.referencia_id) return;
+      const ref = referenciasDelMaterial.find((r) => String(r.id) === form.referencia_id);
+      if (!ref) return;
+      if (cantidadNum > ref.stock_disponible) {
+        setMensaje({
+          texto: `No hay suficiente stock en "${ref.codigo}" (disponible: ${ref.stock_disponible}).`,
+          tipo: "error",
+        });
+        return;
+      }
+      setLineasSalida((prev) => {
+        const nuevaLinea = {
+          material_id: materialSeleccionado.id,
+          codigo: materialSeleccionado.codigo,
+          descripcion: materialSeleccionado.descripcion,
+          referencia_id: ref.id,
+          referenciaCodigo: ref.codigo,
+          cantidad: form.cantidad,
+        };
+        const existe = prev.some((l) => l.material_id === nuevaLinea.material_id && l.referencia_id === ref.id);
+        if (existe) {
+          return prev.map((l) =>
+            l.material_id === nuevaLinea.material_id && l.referencia_id === ref.id ? nuevaLinea : l
+          );
+        }
+        return [...prev, nuevaLinea];
+      });
+    } else {
+      if (cantidadNum > materialSeleccionado.stock_actual) {
+        setMensaje({
+          texto: `No hay suficiente stock (disponible: ${materialSeleccionado.stock_actual}).`,
+          tipo: "error",
+        });
+        return;
+      }
+      setLineasSalida((prev) => {
+        const nuevaLinea = {
+          material_id: materialSeleccionado.id,
+          codigo: materialSeleccionado.codigo,
+          descripcion: materialSeleccionado.descripcion,
+          referencia_id: null,
+          referenciaCodigo: null,
+          cantidad: form.cantidad,
+        };
+        const existe = prev.some((l) => l.material_id === nuevaLinea.material_id && l.referencia_id === null);
+        if (existe) {
+          return prev.map((l) => (l.material_id === nuevaLinea.material_id && l.referencia_id === null ? nuevaLinea : l));
+        }
+        return [...prev, nuevaLinea];
+      });
+    }
+
+    setMensaje(null);
+    setForm((f) => ({ ...f, material_id: "", referencia_id: "", cantidad: "" }));
+    setReferenciasDelMaterial([]);
+  }
+
+  function quitarLineaSalida(materialId: number, referenciaId: number | null) {
+    setLineasSalida((prev) => prev.filter((l) => !(l.material_id === materialId && l.referencia_id === referenciaId)));
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!form.material_id) {
-      setMensaje({ texto: "Selecciona un material de la lista.", tipo: "error" });
-      return;
-    }
-    if (entradaMultiReferencia) {
+
+    if (salidaMultiMaterial) {
+      if (lineasSalida.length === 0) {
+        setMensaje({ texto: "Agrega al menos un material con su cantidad.", tipo: "error" });
+        return;
+      }
+    } else if (entradaMultiReferencia) {
+      if (!form.material_id) {
+        setMensaje({ texto: "Selecciona un material de la lista.", tipo: "error" });
+        return;
+      }
       if (lineasReferencia.length === 0) {
         setMensaje({ texto: "Agrega al menos una referencia con su cantidad.", tipo: "error" });
         return;
       }
-    } else {
-      if (materialSeleccionado?.maneja_referencias && !form.referencia_id) {
-        setMensaje({ texto: "Selecciona cuál referencia se está moviendo.", tipo: "error" });
-        return;
-      }
-      if (materialSeleccionado?.maneja_referencias && referenciaSeleccionada) {
-        if (form.tipo === "salida" && Number(form.cantidad) > referenciaSeleccionada.stock_disponible) {
-          setMensaje({
-            texto: `No hay suficiente stock en "${referenciaSeleccionada.codigo}" (disponible: ${referenciaSeleccionada.stock_disponible}).`,
-            tipo: "error",
-          });
-          return;
-        }
-      } else if (
-        form.tipo === "salida" &&
-        materialSeleccionado &&
-        Number(form.cantidad) > materialSeleccionado.stock_actual
-      ) {
-        setMensaje({ texto: `No hay suficiente stock (disponible: ${materialSeleccionado.stock_actual}).`, tipo: "error" });
-        return;
-      }
+    } else if (!form.material_id) {
+      setMensaje({ texto: "Selecciona un material de la lista.", tipo: "error" });
+      return;
     }
+
     setEnviando(true);
     setMensaje(null);
     try {
@@ -210,7 +280,31 @@ export function Movimientos() {
       ]);
       const actaUrl = actaEntrega ? await subirEvidencia("movimientos", actaEntrega) : undefined;
 
-      if (entradaMultiReferencia) {
+      if (salidaMultiMaterial) {
+        const { error } = await supabase.from("movimientos").insert(
+          lineasSalida.map((l) => ({
+            material_id: l.material_id,
+            tipo: "salida" as const,
+            cantidad: Number(l.cantidad),
+            referencia_id: l.referencia_id,
+            solicitante_id: form.solicitante_id ? Number(form.solicitante_id) : null,
+            observaciones: form.observaciones || null,
+            ubicacion: form.ubicacion.trim() || null,
+            ...(fotoUrl ? { foto: fotoUrl } : {}),
+            ...(adjuntoUrl ? { adjunto: adjuntoUrl } : {}),
+            ...(actaUrl ? { acta_entrega: actaUrl } : {}),
+          }))
+        );
+        if (error) throw error;
+        setUltimaRemision(
+          lineasSalida.map((l) => ({
+            codigo: l.codigo,
+            descripcion: l.descripcion,
+            cantidad: money(Number(l.cantidad)),
+            serieLote: l.referenciaCodigo ?? "—",
+          }))
+        );
+      } else if (entradaMultiReferencia) {
         const { error } = await supabase.from("movimientos").insert(
           lineasReferencia.map((l) => ({
             material_id: Number(form.material_id),
@@ -227,58 +321,31 @@ export function Movimientos() {
         if (error) throw error;
         setUltimaRemision(null);
       } else {
-        const { data, error } = await supabase
-          .from("movimientos")
-          .insert({
-            material_id: Number(form.material_id),
-            tipo: form.tipo,
-            cantidad: Number(form.cantidad),
-            referencia_id: form.referencia_id ? Number(form.referencia_id) : null,
-            solicitante_id: form.solicitante_id ? Number(form.solicitante_id) : null,
-            observaciones: form.observaciones || null,
-            ubicacion: form.tipo === "salida" ? form.ubicacion.trim() || null : null,
-            ...(fotoUrl ? { foto: fotoUrl } : {}),
-            ...(adjuntoUrl ? { adjunto: adjuntoUrl } : {}),
-            ...(actaUrl ? { acta_entrega: actaUrl } : {}),
-          })
-          .select("id, creado_en")
-          .single();
+        const { error } = await supabase.from("movimientos").insert({
+          material_id: Number(form.material_id),
+          tipo: form.tipo,
+          cantidad: Number(form.cantidad),
+          referencia_id: form.referencia_id ? Number(form.referencia_id) : null,
+          solicitante_id: form.solicitante_id ? Number(form.solicitante_id) : null,
+          observaciones: form.observaciones || null,
+          ...(fotoUrl ? { foto: fotoUrl } : {}),
+          ...(adjuntoUrl ? { adjunto: adjuntoUrl } : {}),
+          ...(actaUrl ? { acta_entrega: actaUrl } : {}),
+        });
         if (error) throw error;
-
-        if (form.tipo === "salida") {
-          const solicitanteNombre = solicitantes.find((s) => String(s.id) === form.solicitante_id)?.nombre || "—";
-          const fecha = new Intl.DateTimeFormat("es-CO", {
-            timeZone: "America/Bogota",
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-          }).format(new Date(data.creado_en));
-          setUltimaRemision({
-            numero: `REM-${String(data.id).padStart(6, "0")}`,
-            fecha,
-            empresa: materialSeleccionado?.empresa_nombre ?? "—",
-            centroCosto: materialSeleccionado?.centro_costo_nombre ?? "—",
-            solicitante: solicitanteNombre,
-            destino:
-              form.ubicacion.trim() || referenciaSeleccionada?.ubicacion || materialSeleccionado?.ubicacion || "—",
-            motivo: form.observaciones || "—",
-            codigo: materialSeleccionado?.codigo ?? "—",
-            descripcion: materialSeleccionado?.descripcion ?? "—",
-            cantidad: money(Number(form.cantidad)),
-            serieLote: referenciaSeleccionada?.codigo ?? "—",
-          });
-        } else {
-          setUltimaRemision(null);
-        }
+        setUltimaRemision(null);
       }
 
-      const totalLineas = lineasReferencia.length;
+      const totalLineasRef = lineasReferencia.length;
+      const totalLineasSalida = lineasSalida.length;
       cerrarForm();
       await Promise.all([cargarMateriales(), cargarRecientes()]);
       setMensaje({
-        texto: entradaMultiReferencia
-          ? `Se registraron ${totalLineas} entradas correctamente.`
-          : "Movimiento registrado correctamente.",
+        texto: salidaMultiMaterial
+          ? `Se registraron ${totalLineasSalida} salidas correctamente.`
+          : entradaMultiReferencia
+            ? `Se registraron ${totalLineasRef} entradas correctamente.`
+            : "Movimiento registrado correctamente.",
         tipo: "ok",
       });
     } catch (err) {
@@ -305,7 +372,8 @@ export function Movimientos() {
       {!mostrarForm && ultimaRemision && (
         <div className="aviso-remision">
           <span>
-            Remisión <strong>{ultimaRemision.numero}</strong> lista para esta salida.
+            Remisión lista para esta salida ({ultimaRemision.length} material{ultimaRemision.length === 1 ? "" : "es"}
+            ).
           </span>
           <div style={{ display: "flex", gap: 8 }}>
             <button type="button" className="btn-secundario" onClick={() => abrirRemisionPdf(ultimaRemision)}>
@@ -327,12 +395,102 @@ export function Movimientos() {
               adjunto ||
               actaEntrega ||
               nuevoSolicitante.trim() ||
-              lineasReferencia.length > 0
+              lineasReferencia.length > 0 ||
+              lineasSalida.length > 0
           )}
         >
           <form className="form-grid" onSubmit={handleSubmit}>
             <ComboMaterial materiales={materiales} materialId={form.material_id} onSeleccionar={seleccionarMaterial} />
-            {entradaMultiReferencia ? (
+            {salidaMultiMaterial ? (
+              <>
+                {materialSeleccionado?.maneja_referencias && (
+                  <div>
+                    <label>Referencia</label>
+                    <select
+                      value={form.referencia_id}
+                      onChange={(e) => setForm({ ...form, referencia_id: e.target.value })}
+                    >
+                      <option value="">{cargandoReferencias ? "Cargando..." : "Selecciona una referencia"}</option>
+                      {referenciasCandidatas.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.codigo}
+                          {r.ubicacion ? ` — ${r.ubicacion}` : ""} (disponible: {r.stock_disponible})
+                        </option>
+                      ))}
+                    </select>
+                    {!cargandoReferencias && referenciasDelMaterial.length === 0 && (
+                      <div className="stock-aviso" style={{ marginTop: 8 }}>
+                        Este material no tiene ninguna referencia registrada todavía -- agrégalas editando el
+                        material.
+                      </div>
+                    )}
+                    {!cargandoReferencias && referenciasDelMaterial.length > 0 && referenciasCandidatas.length === 0 && (
+                      <div className="stock-aviso" style={{ marginTop: 8 }}>
+                        Tiene {referenciasDelMaterial.length} referencia(s) registrada(s), pero ninguna con stock
+                        disponible para sacar -- registra primero una Entrada.
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div>
+                  <label>Cantidad</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={form.cantidad}
+                    onWheel={(e) => e.currentTarget.blur()}
+                    onChange={(e) => setForm({ ...form, cantidad: e.target.value })}
+                  />
+                  {referenciaSeleccionada ? (
+                    <div className="stock-aviso" style={{ marginTop: 6 }}>
+                      Disponible en esta referencia: {referenciaSeleccionada.stock_disponible}
+                    </div>
+                  ) : (
+                    materialSeleccionado && (
+                      <div className="stock-aviso" style={{ marginTop: 6 }}>
+                        Stock actual: {materialSeleccionado.stock_actual}
+                      </div>
+                    )
+                  )}
+                </div>
+                <div className="full">
+                  <button
+                    type="button"
+                    className="btn-secundario"
+                    disabled={
+                      !materialSeleccionado ||
+                      !form.cantidad ||
+                      (materialSeleccionado.maneja_referencias && !form.referencia_id)
+                    }
+                    onClick={agregarLineaSalida}
+                  >
+                    + Agregar a la salida
+                  </button>
+                </div>
+                <div className="full">
+                  {lineasSalida.length > 0 ? (
+                    <div className="tags-lista">
+                      {lineasSalida.map((l) => (
+                        <span key={`${l.material_id}-${l.referencia_id ?? "x"}`} className="tag-chip">
+                          {l.codigo}
+                          {l.referenciaCodigo ? ` (${l.referenciaCodigo})` : ""} — {l.cantidad}
+                          <button
+                            type="button"
+                            onClick={() => quitarLineaSalida(l.material_id, l.referencia_id)}
+                            aria-label={`Quitar ${l.codigo}`}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="stock-aviso">Agrega al menos un material con su cantidad antes de registrar.</div>
+                  )}
+                </div>
+              </>
+            ) : entradaMultiReferencia ? (
               <div className="full">
                 <label>Referencias</label>
                 <div className="tags-input">
@@ -396,62 +554,25 @@ export function Movimientos() {
                 )}
               </div>
             ) : (
-              <>
-                {materialSeleccionado?.maneja_referencias && (
-                  <div>
-                    <label>Referencia</label>
-                    <select
-                      required
-                      value={form.referencia_id}
-                      onChange={(e) => setForm({ ...form, referencia_id: e.target.value, ubicacion: "" })}
-                    >
-                      <option value="">{cargandoReferencias ? "Cargando..." : "Selecciona una referencia"}</option>
-                      {referenciasCandidatas.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {r.codigo}
-                          {r.ubicacion ? ` — ${r.ubicacion}` : ""}
-                          {form.tipo === "salida" ? ` (disponible: ${r.stock_disponible})` : ""}
-                        </option>
-                      ))}
-                    </select>
-                    {!cargandoReferencias && referenciasDelMaterial.length === 0 && (
-                      <div className="stock-aviso" style={{ marginTop: 8 }}>
-                        Este material no tiene ninguna referencia registrada todavía -- agrégalas editando el
-                        material.
-                      </div>
-                    )}
-                    {!cargandoReferencias && referenciasDelMaterial.length > 0 && referenciasCandidatas.length === 0 && (
-                      <div className="stock-aviso" style={{ marginTop: 8 }}>
-                        Tiene {referenciasDelMaterial.length} referencia(s) registrada(s), pero ninguna con stock
-                        disponible para sacar -- registra primero una Entrada.
-                      </div>
-                    )}
+              // Unico caso que llega aca: Entrada de un material SIN
+              // referencias -- un solo campo de cantidad, sin carrito.
+              <div>
+                <label>Cantidad</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  required
+                  value={form.cantidad}
+                  onWheel={(e) => e.currentTarget.blur()}
+                  onChange={(e) => setForm({ ...form, cantidad: e.target.value })}
+                />
+                {materialSeleccionado && (
+                  <div className="stock-aviso" style={{ marginTop: 6 }}>
+                    Stock actual: {materialSeleccionado.stock_actual}
                   </div>
                 )}
-                <div>
-                  <label>Cantidad</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    required
-                    value={form.cantidad}
-                    onWheel={(e) => e.currentTarget.blur()}
-                    onChange={(e) => setForm({ ...form, cantidad: e.target.value })}
-                  />
-                  {referenciaSeleccionada ? (
-                    <div className="stock-aviso" style={{ marginTop: 6 }}>
-                      Disponible en esta referencia: {referenciaSeleccionada.stock_disponible}
-                    </div>
-                  ) : (
-                    materialSeleccionado && (
-                      <div className="stock-aviso" style={{ marginTop: 6 }}>
-                        Stock actual: {materialSeleccionado.stock_actual}
-                      </div>
-                    )
-                  )}
-                </div>
-              </>
+              </div>
             )}
             {form.tipo === "salida" && (
               <div>
@@ -463,9 +584,7 @@ export function Movimientos() {
                   onChange={(e) => setForm({ ...form, ubicacion: e.target.value })}
                 />
                 <div className="stock-aviso" style={{ marginTop: 6 }}>
-                  Ubicación actual:{" "}
-                  {(referenciaSeleccionada?.ubicacion || materialSeleccionado?.ubicacion) ?? "sin registrar"}. Solo
-                  escribe aquí si el material va a quedar en un lugar distinto.
+                  Se aplica a todos los materiales de esta salida. Déjalo vacío si ninguno cambia de sitio.
                 </div>
               </div>
             )}
@@ -524,7 +643,14 @@ export function Movimientos() {
                 <input type="file" accept="image/*" onChange={(e) => setActaEntrega(e.target.files?.[0] ?? null)} />
               </div>
             )}
-            <button type="submit" disabled={enviando || (entradaMultiReferencia && lineasReferencia.length === 0)}>
+            <button
+              type="submit"
+              disabled={
+                enviando ||
+                (entradaMultiReferencia && lineasReferencia.length === 0) ||
+                (salidaMultiMaterial && lineasSalida.length === 0)
+              }
+            >
               {enviando ? "Registrando..." : form.tipo === "entrada" ? "Registrar entrada" : "Registrar salida"}
             </button>
             <button type="button" className="btn-secundario" onClick={cerrarForm}>
