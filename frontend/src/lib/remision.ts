@@ -206,7 +206,7 @@ function construirRemisionPdf(datos: DatosRemisionSalida): jsPDF {
   });
 
   // --- Control y autorizacion ---
-  asegurarEspacio(5 + 8 + 30);
+  asegurarEspacio(5 + 8 + 36);
   tituloSeccion("CONTROL Y AUTORIZACIÓN");
   const colW = contentW / 3;
   const titulos = ["ENTREGÓ", "MENSAJERIA/CORRESPONDENCIA", "RECIBIÓ"];
@@ -224,10 +224,9 @@ function construirRemisionPdf(datos: DatosRemisionSalida): jsPDF {
   }
   y += hTitAut;
 
-  // Mas alta que antes para que quepa la firma de quien entrega -- las
-  // otras dos columnas siguen en blanco para firmar a mano, solo se les
-  // reparte el espacio extra para que las 3 lineas queden mas separadas.
-  const hCuerpoAut = 30;
+  // Mas alta que antes para que la firma de quien entrega quepa en el mismo
+  // orden (Nombre / Firma / Fecha) que las otras dos columnas, no al lado.
+  const hCuerpoAut = 36;
   x = MARGEN;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
@@ -236,14 +235,14 @@ function construirRemisionPdf(datos: DatosRemisionSalida): jsPDF {
     if (i === 0) {
       doc.text(`Nombre: ${NOMBRE_ENTREGO}`, x + 3, y + 7);
       doc.text("Firma:", x + 3, y + 13);
-      const firmaW = 24;
+      const firmaW = 22;
       const firmaH = firmaW / FIRMA_RATIO;
       doc.addImage(FIRMA_XIOMARA_JPG, "JPEG", x + 3, y + 14, firmaW, firmaH);
-      doc.text(`Fecha: ${datos.fechaEntrega}`, x + firmaW + 10, y + 20);
+      doc.text(`Fecha: ${datos.fechaEntrega}`, x + 3, y + 14 + firmaH + 5);
     } else {
-      doc.text("Nombre: ______________________", x + 3, y + 8);
-      doc.text("Firma: ________________________", x + 3, y + 17);
-      doc.text("Fecha: ________________________", x + 3, y + 26);
+      doc.text("Nombre: ______________________", x + 3, y + 9);
+      doc.text("Firma: ________________________", x + 3, y + 19);
+      doc.text("Fecha: ________________________", x + 3, y + 29);
     }
     x += colW;
   }
