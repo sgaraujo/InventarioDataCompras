@@ -746,9 +746,10 @@ form.form-grid .form-seccion {
   color: var(--text-muted);
 }
 
-/* Caja que agrupa "elegir material + agregarlo a la lista" en Salida,
-   separada del resto de campos del formulario. */
-form.form-grid .carrito-salida {
+/* Caja que agrupa "elegir material + agregarlo a la lista" (Salida con
+   varios materiales, o Entrada con varias referencias), separada del resto
+   de campos del formulario. */
+form.form-grid .carrito-materiales {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
@@ -758,7 +759,7 @@ form.form-grid .carrito-salida {
   border-radius: var(--radius);
 }
 
-form.form-grid .carrito-salida .full { grid-column: 1 / -1; }
+form.form-grid .carrito-materiales .full { grid-column: 1 / -1; }
 
 .texto-ayuda {
   display: block;

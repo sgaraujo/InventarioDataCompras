@@ -468,7 +468,7 @@ export function Movimientos() {
         >
           <form className="form-grid" onSubmit={handleSubmit}>
             {salidaMultiMaterial ? (
-              <div className="full carrito-salida">
+              <div className="full carrito-materiales">
                 <ComboMaterial
                   key={comboResetKey}
                   materiales={materiales}
@@ -562,17 +562,17 @@ export function Movimientos() {
                   )}
                 </div>
               </div>
-            ) : (
-              <ComboMaterial materiales={materiales} materialId={form.material_id} onSeleccionar={seleccionarMaterial} />
-            )}
-            {salidaMultiMaterial ? null : entradaMultiReferencia ? (
-              <div className="full">
-                <label>Referencias</label>
-                <div className="tags-input">
-                  <select
-                    value={form.referencia_id}
-                    onChange={(e) => setForm({ ...form, referencia_id: e.target.value })}
-                  >
+            ) : entradaMultiReferencia ? (
+              <div className="full carrito-materiales">
+                <ComboMaterial
+                  key={comboResetKey}
+                  materiales={materiales}
+                  materialId={form.material_id}
+                  onSeleccionar={seleccionarMaterial}
+                />
+                <div>
+                  <label>Referencia</label>
+                  <select value={form.referencia_id} onChange={(e) => setForm({ ...form, referencia_id: e.target.value })}>
                     <option value="">{cargandoReferencias ? "Cargando..." : "Selecciona una referencia"}</option>
                     {referenciasDelMaterial.map((r) => (
                       <option key={r.id} value={r.id}>
@@ -581,73 +581,77 @@ export function Movimientos() {
                       </option>
                     ))}
                   </select>
+                  {!cargandoReferencias && referenciasDelMaterial.length === 0 && (
+                    <div className="stock-aviso" style={{ marginTop: 8 }}>
+                      Este material no tiene ninguna referencia registrada todavía -- agrégalas editando el material.
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label>Cantidad</label>
                   <input
                     type="number"
                     step="0.01"
                     min="0.01"
-                    placeholder="Cantidad"
                     value={form.cantidad}
                     onWheel={(e) => e.currentTarget.blur()}
                     onChange={(e) => setForm({ ...form, cantidad: e.target.value })}
                   />
+                </div>
+                <div className="full">
                   <button
                     type="button"
                     className="btn-secundario"
                     disabled={!form.referencia_id || !form.cantidad}
                     onClick={agregarLineaReferencia}
                   >
-                    + Agregar
+                    + Agregar a la entrada
                   </button>
                 </div>
-                {!cargandoReferencias && referenciasDelMaterial.length === 0 && (
-                  <div className="stock-aviso" style={{ marginTop: 8 }}>
-                    Este material no tiene ninguna referencia registrada todavía -- agrégalas editando el material.
-                  </div>
-                )}
-                {lineasReferencia.length > 0 ? (
-                  <div className="tags-lista" style={{ marginTop: 8 }}>
-                    {lineasReferencia.map((l) => (
-                      <span key={l.referencia_id} className="tag-chip">
-                        {l.codigo} — {l.cantidad}
-                        <button
-                          type="button"
-                          onClick={() => quitarLineaReferencia(l.referencia_id)}
-                          aria-label={`Quitar ${l.codigo}`}
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  !cargandoReferencias &&
-                  referenciasDelMaterial.length > 0 && (
-                    <div className="stock-aviso" style={{ marginTop: 8 }}>
-                      Agrega al menos una referencia con su cantidad antes de registrar.
+                <div className="full">
+                  {lineasReferencia.length > 0 ? (
+                    <div className="tags-lista">
+                      {lineasReferencia.map((l) => (
+                        <span key={l.referencia_id} className="tag-chip">
+                          {l.codigo} — {l.cantidad}
+                          <button
+                            type="button"
+                            onClick={() => quitarLineaReferencia(l.referencia_id)}
+                            aria-label={`Quitar ${l.codigo}`}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
                     </div>
-                  )
-                )}
+                  ) : (
+                    <div className="stock-aviso">Agrega al menos una referencia con su cantidad antes de registrar.</div>
+                  )}
+                </div>
               </div>
             ) : (
               // Unico caso que llega aca: Entrada de un material SIN
               // referencias -- un solo campo de cantidad, sin carrito.
-              <div>
-                <label>Cantidad</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  required
-                  value={form.cantidad}
-                  onWheel={(e) => e.currentTarget.blur()}
-                  onChange={(e) => setForm({ ...form, cantidad: e.target.value })}
-                />
-                {materialSeleccionado && (
-                  <div className="stock-aviso" style={{ marginTop: 6 }}>
-                    Stock actual: {materialSeleccionado.stock_actual}
-                  </div>
-                )}
-              </div>
+              <>
+                <ComboMaterial materiales={materiales} materialId={form.material_id} onSeleccionar={seleccionarMaterial} />
+                <div>
+                  <label>Cantidad</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    required
+                    value={form.cantidad}
+                    onWheel={(e) => e.currentTarget.blur()}
+                    onChange={(e) => setForm({ ...form, cantidad: e.target.value })}
+                  />
+                  {materialSeleccionado && (
+                    <div className="stock-aviso" style={{ marginTop: 6 }}>
+                      Stock actual: {materialSeleccionado.stock_actual}
+                    </div>
+                  )}
+                </div>
+              </>
             )}
             {form.tipo === "salida" && (
               <>
@@ -702,7 +706,7 @@ export function Movimientos() {
                 </div>
               </>
             )}
-            <div className="full form-seccion">{form.tipo === "salida" ? "Solicitante y evidencia" : "Solicitante"}</div>
+            <div className="full form-seccion">Solicitante y evidencia</div>
             <div>
               <label>Solicitante</label>
               <select value={form.solicitante_id} onChange={(e) => setForm({ ...form, solicitante_id: e.target.value })}>
