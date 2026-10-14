@@ -732,6 +732,34 @@ form.form-grid {
 
 form.form-grid .full { grid-column: 1 / -1; }
 
+/* Titulo de sub-seccion dentro de un formulario largo (ej. Salida con
+   varios materiales) -- separa visualmente grupos de campos para que no
+   se vean todos amontonados uno encima del otro. */
+form.form-grid .form-seccion {
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* Caja que agrupa "elegir material + agregarlo a la lista" en Salida,
+   separada del resto de campos del formulario. */
+form.form-grid .carrito-salida {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+form.form-grid .carrito-salida .full { grid-column: 1 / -1; }
+
 .texto-ayuda {
   display: block;
   margin-top: 5px;

@@ -438,6 +438,7 @@ export function Movimientos() {
       {mostrarForm && (
         <Modal
           titulo={form.tipo === "entrada" ? "Registrar entrada de material" : "Registrar salida de material"}
+          ancho={salidaMultiMaterial}
           onClose={cerrarForm}
           confirmarCierre={Boolean(
             form.material_id ||
@@ -456,14 +457,14 @@ export function Movimientos() {
           )}
         >
           <form className="form-grid" onSubmit={handleSubmit}>
-            <ComboMaterial
-              key={comboResetKey}
-              materiales={materiales}
-              materialId={form.material_id}
-              onSeleccionar={seleccionarMaterial}
-            />
             {salidaMultiMaterial ? (
-              <>
+              <div className="full carrito-salida">
+                <ComboMaterial
+                  key={comboResetKey}
+                  materiales={materiales}
+                  materialId={form.material_id}
+                  onSeleccionar={seleccionarMaterial}
+                />
                 {materialSeleccionado?.maneja_referencias && (
                   <div>
                     <label>Referencia</label>
@@ -550,8 +551,11 @@ export function Movimientos() {
                     <div className="stock-aviso">Agrega al menos un material con su cantidad antes de registrar.</div>
                   )}
                 </div>
-              </>
-            ) : entradaMultiReferencia ? (
+              </div>
+            ) : (
+              <ComboMaterial materiales={materiales} materialId={form.material_id} onSeleccionar={seleccionarMaterial} />
+            )}
+            {salidaMultiMaterial ? null : entradaMultiReferencia ? (
               <div className="full">
                 <label>Referencias</label>
                 <div className="tags-input">
@@ -636,39 +640,59 @@ export function Movimientos() {
               </div>
             )}
             {form.tipo === "salida" && (
-              <div>
-                <label>Nueva ubicación (opcional)</label>
-                <input
-                  type="text"
-                  placeholder="Deja vacío si no cambia de sitio"
-                  value={form.ubicacion}
-                  onChange={(e) => setForm({ ...form, ubicacion: e.target.value })}
-                />
-                <div className="stock-aviso" style={{ marginTop: 6 }}>
-                  Se aplica a todos los materiales de esta salida. Déjalo vacío si ninguno cambia de sitio.
+              <>
+                <div className="full form-seccion">Datos de la remisión (opcional)</div>
+                <div>
+                  <label>Nueva ubicación</label>
+                  <input
+                    type="text"
+                    placeholder="Deja vacío si no cambia de sitio"
+                    value={form.ubicacion}
+                    onChange={(e) => setForm({ ...form, ubicacion: e.target.value })}
+                  />
+                  <div className="texto-ayuda">Se aplica a todos los materiales de esta salida.</div>
                 </div>
-              </div>
+                <div>
+                  <label>Área / Proyecto</label>
+                  <input
+                    type="text"
+                    value={form.area_proyecto}
+                    onChange={(e) => setForm({ ...form, area_proyecto: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label>Centro de costo</label>
+                  <input
+                    type="text"
+                    value={form.centro_costo_texto}
+                    onChange={(e) => setForm({ ...form, centro_costo_texto: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label>Tipo de movimiento</label>
+                  <select
+                    value={form.tipo_movimiento}
+                    onChange={(e) => setForm({ ...form, tipo_movimiento: e.target.value as TipoMovimientoRemision })}
+                  >
+                    <option value="">Sin especificar</option>
+                    {OPCIONES_TIPO_MOVIMIENTO.map((op) => (
+                      <option key={op} value={op}>
+                        {op}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="full">
+                  <label>Motivo de salida</label>
+                  <input
+                    type="text"
+                    value={form.motivo_salida}
+                    onChange={(e) => setForm({ ...form, motivo_salida: e.target.value })}
+                  />
+                </div>
+              </>
             )}
-            {form.tipo === "salida" && (
-              <div>
-                <label>Área / Proyecto (opcional)</label>
-                <input
-                  type="text"
-                  value={form.area_proyecto}
-                  onChange={(e) => setForm({ ...form, area_proyecto: e.target.value })}
-                />
-              </div>
-            )}
-            {form.tipo === "salida" && (
-              <div>
-                <label>Centro de costo (opcional)</label>
-                <input
-                  type="text"
-                  value={form.centro_costo_texto}
-                  onChange={(e) => setForm({ ...form, centro_costo_texto: e.target.value })}
-                />
-              </div>
-            )}
+            <div className="full form-seccion">{form.tipo === "salida" ? "Solicitante y evidencia" : "Solicitante"}</div>
             <div>
               <label>Solicitante</label>
               <select value={form.solicitante_id} onChange={(e) => setForm({ ...form, solicitante_id: e.target.value })}>
@@ -700,37 +724,11 @@ export function Movimientos() {
               <label>Observaciones</label>
               <input
                 type="text"
-                placeholder="Opcional"
+                placeholder={salidaMultiMaterial ? "Opcional -- se guarda igual en cada material de esta salida" : "Opcional"}
                 value={form.observaciones}
                 onChange={(e) => setForm({ ...form, observaciones: e.target.value })}
               />
             </div>
-            {form.tipo === "salida" && (
-              <div>
-                <label>Motivo de salida (opcional)</label>
-                <input
-                  type="text"
-                  value={form.motivo_salida}
-                  onChange={(e) => setForm({ ...form, motivo_salida: e.target.value })}
-                />
-              </div>
-            )}
-            {form.tipo === "salida" && (
-              <div>
-                <label>Tipo de movimiento (opcional)</label>
-                <select
-                  value={form.tipo_movimiento}
-                  onChange={(e) => setForm({ ...form, tipo_movimiento: e.target.value as TipoMovimientoRemision })}
-                >
-                  <option value="">Sin especificar</option>
-                  {OPCIONES_TIPO_MOVIMIENTO.map((op) => (
-                    <option key={op} value={op}>
-                      {op}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
             <div>
               <label>Foto de evidencia (opcional)</label>
               <input type="file" accept="image/*" onChange={(e) => setFoto(e.target.files?.[0] ?? null)} />
