@@ -1,4 +1,5 @@
 import jsPDF from "jspdf";
+import { FIRMA_XIOMARA_JPG } from "../assets/remision/firma";
 
 // Recrea el formato oficial "Remision_salida_materiales_INTEEGRA.docx"
 // (version con una sola tabla de datos combinada). Sin logo ni cinta
@@ -36,6 +37,10 @@ const COLOR_BORDE: [number, number, number] = [130, 130, 130];
 const COLOR_TEXTO: [number, number, number] = [30, 30, 30];
 
 const MARGEN = 14;
+const FIRMA_RATIO = 612 / 392;
+// Quien entrega es siempre la misma persona -- se llena sola, no depende de
+// quien registra la salida en el sistema.
+const NOMBRE_ENTREGO = "Xiomara Urueña";
 const OPCIONES_TIPO_MOVIMIENTO: Exclude<TipoMovimientoRemision, "">[] = [
   "Consumo",
   "Traslado",
@@ -201,7 +206,7 @@ function construirRemisionPdf(datos: DatosRemisionSalida): jsPDF {
   });
 
   // --- Control y autorizacion ---
-  asegurarEspacio(5 + 8 + 24);
+  asegurarEspacio(5 + 8 + 30);
   tituloSeccion("CONTROL Y AUTORIZACIÓN");
   const colW = contentW / 3;
   const titulos = ["ENTREGÓ", "MENSAJERIA/CORRESPONDENCIA", "RECIBIÓ"];
@@ -219,15 +224,27 @@ function construirRemisionPdf(datos: DatosRemisionSalida): jsPDF {
   }
   y += hTitAut;
 
-  const hCuerpoAut = 24;
+  // Mas alta que antes para que quepa la firma de quien entrega -- las
+  // otras dos columnas siguen en blanco para firmar a mano, solo se les
+  // reparte el espacio extra para que las 3 lineas queden mas separadas.
+  const hCuerpoAut = 30;
   x = MARGEN;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
   for (let i = 0; i < 3; i++) {
     doc.rect(x, y, colW, hCuerpoAut, "D");
-    doc.text("Nombre: ______________________", x + 3, y + 7);
-    doc.text("Firma: ________________________", x + 3, y + 15);
-    doc.text("Fecha: ________________________", x + 3, y + 22);
+    if (i === 0) {
+      doc.text(`Nombre: ${NOMBRE_ENTREGO}`, x + 3, y + 7);
+      doc.text("Firma:", x + 3, y + 13);
+      const firmaW = 24;
+      const firmaH = firmaW / FIRMA_RATIO;
+      doc.addImage(FIRMA_XIOMARA_JPG, "JPEG", x + 3, y + 14, firmaW, firmaH);
+      doc.text(`Fecha: ${datos.fechaEntrega}`, x + firmaW + 10, y + 20);
+    } else {
+      doc.text("Nombre: ______________________", x + 3, y + 8);
+      doc.text("Firma: ________________________", x + 3, y + 17);
+      doc.text("Fecha: ________________________", x + 3, y + 26);
+    }
     x += colW;
   }
   y += hCuerpoAut + 6;
