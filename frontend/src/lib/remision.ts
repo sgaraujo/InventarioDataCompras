@@ -1,18 +1,32 @@
 import jsPDF from "jspdf";
-import { LOGO_INTEEGRA_JPG, RIBBON_PIE_PNG } from "../assets/remision/images";
 
 // Recrea el formato oficial "Remision_salida_materiales_INTEEGRA.docx"
-// (version con una sola tabla de datos combinada -- ver analisis del
-// 2026-10-14). Por ahora solo se llena la tabla "DETALLE DE MATERIALES" con
-// los materiales reales de la salida; el resto de campos (N.º remision,
-// fecha, area/proyecto, centro de costo, solicitado por, identificacion,
-// destino/ubicacion, motivo, tipo de movimiento) quedan en blanco a
-// proposito -- falta decidir de donde sale cada uno con la plantilla nueva.
+// (version con una sola tabla de datos combinada). Sin logo ni cinta
+// decorativa -- decision del cliente: si una remision mezcla materiales de
+// empresas distintas no tiene sentido ponerle el logo de una sola marca.
+
 export interface ItemRemision {
   codigo: string;
   descripcion: string;
   cantidad: string;
   serieLote: string;
+}
+
+export type TipoMovimientoRemision = "" | "Consumo" | "Traslado" | "Préstamo" | "Alquiler" | "Otro";
+
+export interface DatosRemisionSalida {
+  numero: string;
+  fechaEntrega: string;
+  areaProyecto: string;
+  centroCosto: string;
+  solicitadoPor: string;
+  // Siempre vacio por ahora -- falta que nos pasen la identificacion
+  // asociada a cada solicitante.
+  identificacion: string;
+  destinoUbicacion: string;
+  motivoSalida: string;
+  tipoMovimiento: TipoMovimientoRemision;
+  items: ItemRemision[];
 }
 
 const COLOR_TITULO: [number, number, number] = [79, 98, 40]; // #4F6228
@@ -22,38 +36,36 @@ const COLOR_BORDE: [number, number, number] = [130, 130, 130];
 const COLOR_TEXTO: [number, number, number] = [30, 30, 30];
 
 const MARGEN = 14;
-const LOGO_RATIO = 1650 / 579;
-const RIBBON_RATIO = 523 / 182;
+const OPCIONES_TIPO_MOVIMIENTO: Exclude<TipoMovimientoRemision, "">[] = [
+  "Consumo",
+  "Traslado",
+  "Préstamo",
+  "Alquiler",
+  "Otro",
+];
 
-function construirRemisionPdf(items: ItemRemision[]): jsPDF {
+function construirRemisionPdf(datos: DatosRemisionSalida): jsPDF {
   const doc = new jsPDF({ unit: "mm", format: "letter" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const contentW = pageW - MARGEN * 2;
   const labelW = 34;
   const valueW = contentW / 2 - labelW;
-  let y = 14;
+  let y = 20;
 
-  // Si lo que sigue no cabe antes del margen inferior, pasa de pagina.
   function asegurarEspacio(necesario: number) {
     if (y + necesario > pageH - 15) {
       doc.addPage();
-      y = 14;
+      y = 20;
     }
   }
-
-  // --- Logo ---
-  const logoW = 58;
-  const logoH = logoW / LOGO_RATIO;
-  doc.addImage(LOGO_INTEEGRA_JPG, "JPEG", (pageW - logoW) / 2, y, logoW, logoH);
-  y += logoH + 7;
 
   // --- Titulo ---
   doc.setFont("helvetica", "bold");
   doc.setFontSize(15);
   doc.setTextColor(...COLOR_TITULO);
   doc.text("REMISIÓN DE SALIDA DE MATERIALES", pageW / 2, y, { align: "center" });
-  y += 8;
+  y += 10;
 
   function tituloSeccion(texto: string) {
     y += 5;
@@ -64,7 +76,6 @@ function construirRemisionPdf(items: ItemRemision[]): jsPDF {
     y += 3.5;
   }
 
-  // Fila con 2 pares label/valor (4 celdas).
   function filaDoble(labelA: string, valueA: string, labelB: string, valueB: string, opts?: { fontSize?: number }) {
     const fontSize = opts?.fontSize ?? 9;
     const x0 = MARGEN;
@@ -101,7 +112,6 @@ function construirRemisionPdf(items: ItemRemision[]): jsPDF {
     y += h;
   }
 
-  // Fila con un solo label/valor que ocupa todo el ancho (ej. Destino/Ubicacion).
   function filaSimple(label: string, value: string, fontSize = 9) {
     const x0 = MARGEN;
     const padX = 2;
@@ -131,17 +141,18 @@ function construirRemisionPdf(items: ItemRemision[]): jsPDF {
     y += h;
   }
 
-  // --- DATOS DE ENTREGA (todo en blanco por ahora, ver nota arriba) ---
+  // --- DATOS DE ENTREGA ---
   tituloSeccion("DATOS DE ENTREGA");
-  filaDoble("N.º REMISIÓN", "", "FECHA DE ENTREGA", "");
-  filaDoble("ÁREA / PROYECTO", "", "CENTRO DE COSTO", "");
-  filaDoble("SOLICITADO POR", "", "IDENTIFICACIÓN", "");
-  filaSimple("DESTINO / UBICACIÓN", "");
-  filaDoble("MOTIVO DE SALIDA", "", "TIPO DE MOVIMIENTO", "[ ] Consumo   [ ] Traslado   [ ] Préstamo   [ ] Alquiler   [ ] Otro", {
-    fontSize: 8,
-  });
+  filaDoble("N.º REMISIÓN", datos.numero, "FECHA DE ENTREGA", datos.fechaEntrega);
+  filaDoble("ÁREA / PROYECTO", datos.areaProyecto, "CENTRO DE COSTO", datos.centroCosto);
+  filaDoble("SOLICITADO POR", datos.solicitadoPor, "IDENTIFICACIÓN", datos.identificacion);
+  filaSimple("DESTINO / UBICACIÓN", datos.destinoUbicacion);
+  const tipoTexto = OPCIONES_TIPO_MOVIMIENTO.map(
+    (op) => `[${datos.tipoMovimiento === op ? "X" : " "}] ${op}`
+  ).join("   ");
+  filaDoble("MOTIVO DE SALIDA", datos.motivoSalida, "TIPO DE MOVIMIENTO", tipoTexto, { fontSize: 8 });
 
-  // --- Detalle de materiales (una fila por cada item de la salida) ---
+  // --- Detalle de materiales ---
   tituloSeccion("DETALLE DE MATERIALES");
   const cols: { titulo: string; w: number }[] = [
     { titulo: "Ítem", w: 10 },
@@ -173,7 +184,7 @@ function construirRemisionPdf(items: ItemRemision[]): jsPDF {
   asegurarEspacio(hCabecera + hFila);
   dibujarCabeceraMateriales();
 
-  const filas = items.length > 0 ? items : [{ codigo: "", descripcion: "", cantidad: "", serieLote: "" }];
+  const filas = datos.items.length > 0 ? datos.items : [{ codigo: "", descripcion: "", cantidad: "", serieLote: "" }];
   filas.forEach((item, i) => {
     asegurarEspacio(hFila);
     const valores = [String(i + 1), item.codigo, item.descripcion, "UND", item.cantidad, item.serieLote, ""];
@@ -232,34 +243,18 @@ function construirRemisionPdf(items: ItemRemision[]): jsPDF {
   );
   doc.text(notas, MARGEN, y);
 
-  // --- Pie de pagina (cinta decorativa + contacto) -- en cada pagina ---
-  const totalPaginas = doc.getNumberOfPages();
-  for (let p = 1; p <= totalPaginas; p++) {
-    doc.setPage(p);
-    const ribbonW = 70;
-    const ribbonH = ribbonW / RIBBON_RATIO;
-    const footerY = pageH - 20;
-    doc.addImage(RIBBON_PIE_PNG, "PNG", pageW - ribbonW - MARGEN, footerY - ribbonH + 6, ribbonW, ribbonH);
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7.5);
-    doc.setTextColor(90, 90, 90);
-    doc.text("Contacto: Av. Carrera 40 No. 20A - 44 Piso 5 · Tel.: +57 601 7184570", MARGEN, footerY + 2);
-    doc.text("Email: info@inteegra.co · Bogotá, Colombia", MARGEN, footerY + 6);
-  }
-
   return doc;
 }
 
-function nombreArchivo(): string {
-  return `Remision_salida_${Date.now()}.pdf`;
+function nombreArchivo(datos: DatosRemisionSalida): string {
+  return `${datos.numero}.pdf`;
 }
 
-export function descargarRemisionPdf(items: ItemRemision[]): void {
-  construirRemisionPdf(items).save(nombreArchivo());
+export function descargarRemisionPdf(datos: DatosRemisionSalida): void {
+  construirRemisionPdf(datos).save(nombreArchivo(datos));
 }
 
-export function abrirRemisionPdf(items: ItemRemision[]): void {
-  const url = construirRemisionPdf(items).output("bloburl");
+export function abrirRemisionPdf(datos: DatosRemisionSalida): void {
+  const url = construirRemisionPdf(datos).output("bloburl");
   window.open(url, "_blank");
 }

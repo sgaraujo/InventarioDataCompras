@@ -7,8 +7,16 @@ import { ComboMaterial } from "../components/ComboMaterial";
 import { PanelMovimientosRecientes } from "../components/PanelMovimientosRecientes";
 import { useMovimientosRecientes } from "../hooks/useMovimientosRecientes";
 import { money } from "../lib/labels";
-import { abrirRemisionPdf, type ItemRemision } from "../lib/remision";
+import { abrirRemisionPdf, type DatosRemisionSalida, type TipoMovimientoRemision } from "../lib/remision";
 import { Printer } from "lucide-react";
+
+const OPCIONES_TIPO_MOVIMIENTO: Exclude<TipoMovimientoRemision, "">[] = [
+  "Consumo",
+  "Traslado",
+  "Préstamo",
+  "Alquiler",
+  "Otro",
+];
 
 const FORM_VACIO = {
   material_id: "",
@@ -18,6 +26,13 @@ const FORM_VACIO = {
   solicitante_id: "",
   observaciones: "",
   ubicacion: "",
+  // Solo se usan en Salida, para la remision (ver supabase/migrations/
+  // 0025_remision_campos_salida.sql) -- texto libre, no vienen del catalogo
+  // del material.
+  area_proyecto: "",
+  centro_costo_texto: "",
+  motivo_salida: "",
+  tipo_movimiento: "" as TipoMovimientoRemision,
 };
 
 // Registro directo de entradas/salidas (sin flujo de aprobacion -- el cliente
@@ -39,7 +54,12 @@ export function Movimientos() {
   const [cargandoReferencias, setCargandoReferencias] = useState(false);
   const [nuevoSolicitante, setNuevoSolicitante] = useState("");
   const [creandoSolicitante, setCreandoSolicitante] = useState(false);
-  const [ultimaRemision, setUltimaRemision] = useState<ItemRemision[] | null>(null);
+  const [ultimaRemision, setUltimaRemision] = useState<DatosRemisionSalida | null>(null);
+  // Fuerza que el buscador de material se reinicie de verdad (texto
+  // visible incluido) cada vez que se agrega una linea a la salida -- ver
+  // ComboMaterial.tsx, su texto interno no se resincroniza solo cuando el
+  // padre limpia materialId por fuera de una interaccion del usuario.
+  const [comboResetKey, setComboResetKey] = useState(0);
   // Solo para Entrada de un material con referencias: en vez de obligar a
   // repetir el formulario completo por cada referencia, se arma esta lista
   // (referencia + cantidad) y se registran todas de una vez al enviar.
@@ -243,6 +263,7 @@ export function Movimientos() {
     setMensaje(null);
     setForm((f) => ({ ...f, material_id: "", referencia_id: "", cantidad: "" }));
     setReferenciasDelMaterial([]);
+    setComboResetKey((k) => k + 1);
   }
 
   function quitarLineaSalida(materialId: number, referenciaId: number | null) {
@@ -281,6 +302,15 @@ export function Movimientos() {
       const actaUrl = actaEntrega ? await subirEvidencia("movimientos", actaEntrega) : undefined;
 
       if (salidaMultiMaterial) {
+        const { data: numeroData, error: numeroError } = await supabase.rpc("siguiente_remision_numero");
+        if (numeroError) throw numeroError;
+        const remisionNumero = numeroData as number;
+        const areaProyecto = form.area_proyecto.trim() || null;
+        const centroCostoTexto = form.centro_costo_texto.trim() || null;
+        const motivoSalida = form.motivo_salida.trim() || null;
+        const tipoMovimiento = form.tipo_movimiento || null;
+        const ubicacion = form.ubicacion.trim() || null;
+
         const { error } = await supabase.from("movimientos").insert(
           lineasSalida.map((l) => ({
             material_id: l.material_id,
@@ -289,21 +319,43 @@ export function Movimientos() {
             referencia_id: l.referencia_id,
             solicitante_id: form.solicitante_id ? Number(form.solicitante_id) : null,
             observaciones: form.observaciones || null,
-            ubicacion: form.ubicacion.trim() || null,
+            ubicacion,
+            remision_numero: remisionNumero,
+            area_proyecto: areaProyecto,
+            centro_costo_texto: centroCostoTexto,
+            motivo_salida: motivoSalida,
+            tipo_movimiento: tipoMovimiento,
             ...(fotoUrl ? { foto: fotoUrl } : {}),
             ...(adjuntoUrl ? { adjunto: adjuntoUrl } : {}),
             ...(actaUrl ? { acta_entrega: actaUrl } : {}),
           }))
         );
         if (error) throw error;
-        setUltimaRemision(
-          lineasSalida.map((l) => ({
+
+        const solicitanteNombre = solicitantes.find((s) => String(s.id) === form.solicitante_id)?.nombre || "";
+        const fechaEntrega = new Intl.DateTimeFormat("es-CO", {
+          timeZone: "America/Bogota",
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        }).format(new Date());
+        setUltimaRemision({
+          numero: `REM-${String(remisionNumero).padStart(6, "0")}`,
+          fechaEntrega,
+          areaProyecto: areaProyecto ?? "",
+          centroCosto: centroCostoTexto ?? "",
+          solicitadoPor: solicitanteNombre,
+          identificacion: "",
+          destinoUbicacion: ubicacion ?? "",
+          motivoSalida: motivoSalida ?? "",
+          tipoMovimiento: form.tipo_movimiento,
+          items: lineasSalida.map((l) => ({
             codigo: l.codigo,
             descripcion: l.descripcion,
             cantidad: money(Number(l.cantidad)),
             serieLote: l.referenciaCodigo ?? "—",
-          }))
-        );
+          })),
+        });
       } else if (entradaMultiReferencia) {
         const { error } = await supabase.from("movimientos").insert(
           lineasReferencia.map((l) => ({
@@ -372,8 +424,8 @@ export function Movimientos() {
       {!mostrarForm && ultimaRemision && (
         <div className="aviso-remision">
           <span>
-            Remisión lista para esta salida ({ultimaRemision.length} material{ultimaRemision.length === 1 ? "" : "es"}
-            ).
+            Remisión <strong>{ultimaRemision.numero}</strong> lista ({ultimaRemision.items.length} material
+            {ultimaRemision.items.length === 1 ? "" : "es"}).
           </span>
           <div style={{ display: "flex", gap: 8 }}>
             <button type="button" className="btn-secundario" onClick={() => abrirRemisionPdf(ultimaRemision)}>
@@ -396,11 +448,20 @@ export function Movimientos() {
               actaEntrega ||
               nuevoSolicitante.trim() ||
               lineasReferencia.length > 0 ||
-              lineasSalida.length > 0
+              lineasSalida.length > 0 ||
+              form.area_proyecto.trim() ||
+              form.centro_costo_texto.trim() ||
+              form.motivo_salida.trim() ||
+              form.tipo_movimiento
           )}
         >
           <form className="form-grid" onSubmit={handleSubmit}>
-            <ComboMaterial materiales={materiales} materialId={form.material_id} onSeleccionar={seleccionarMaterial} />
+            <ComboMaterial
+              key={comboResetKey}
+              materiales={materiales}
+              materialId={form.material_id}
+              onSeleccionar={seleccionarMaterial}
+            />
             {salidaMultiMaterial ? (
               <>
                 {materialSeleccionado?.maneja_referencias && (
@@ -588,6 +649,26 @@ export function Movimientos() {
                 </div>
               </div>
             )}
+            {form.tipo === "salida" && (
+              <div>
+                <label>Área / Proyecto (opcional)</label>
+                <input
+                  type="text"
+                  value={form.area_proyecto}
+                  onChange={(e) => setForm({ ...form, area_proyecto: e.target.value })}
+                />
+              </div>
+            )}
+            {form.tipo === "salida" && (
+              <div>
+                <label>Centro de costo (opcional)</label>
+                <input
+                  type="text"
+                  value={form.centro_costo_texto}
+                  onChange={(e) => setForm({ ...form, centro_costo_texto: e.target.value })}
+                />
+              </div>
+            )}
             <div>
               <label>Solicitante</label>
               <select value={form.solicitante_id} onChange={(e) => setForm({ ...form, solicitante_id: e.target.value })}>
@@ -624,6 +705,32 @@ export function Movimientos() {
                 onChange={(e) => setForm({ ...form, observaciones: e.target.value })}
               />
             </div>
+            {form.tipo === "salida" && (
+              <div>
+                <label>Motivo de salida (opcional)</label>
+                <input
+                  type="text"
+                  value={form.motivo_salida}
+                  onChange={(e) => setForm({ ...form, motivo_salida: e.target.value })}
+                />
+              </div>
+            )}
+            {form.tipo === "salida" && (
+              <div>
+                <label>Tipo de movimiento (opcional)</label>
+                <select
+                  value={form.tipo_movimiento}
+                  onChange={(e) => setForm({ ...form, tipo_movimiento: e.target.value as TipoMovimientoRemision })}
+                >
+                  <option value="">Sin especificar</option>
+                  {OPCIONES_TIPO_MOVIMIENTO.map((op) => (
+                    <option key={op} value={op}>
+                      {op}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <label>Foto de evidencia (opcional)</label>
               <input type="file" accept="image/*" onChange={(e) => setFoto(e.target.files?.[0] ?? null)} />
