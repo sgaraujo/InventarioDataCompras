@@ -155,7 +155,7 @@ export function Historial() {
                     <td>{new Date(f.creado_en).toLocaleString("es-CO")}</td>
                     <td>{f.materialCodigo || "—"}</td>
                     <td>
-                      {f.esGrupo ? (
+                      {f.esGrupo || (f.tipo === "salida" && f.remisionNumero != null) ? (
                         <a
                           href="#"
                           className="link-detalle"
@@ -163,7 +163,7 @@ export function Historial() {
                             e.preventDefault();
                             setFilaVista(f);
                           }}
-                          title="Ver detalle"
+                          title={f.tipo === "salida" ? "Ver detalle / remisión" : "Ver detalle"}
                         >
                           {f.materialDescripcion || `Varios (${f.materialesDistintos})`}
                           <Layers size={14} />
