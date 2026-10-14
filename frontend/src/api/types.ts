@@ -135,21 +135,47 @@ export interface Movimiento {
   // "De X a Y" en Historial/Ultimos movimientos sin depender de que la
   // ubicacion del material no cambie despues.
   ubicacion_origen: string | null;
+  // Numero de lote compartido por todos los movimientos que se registraron
+  // juntos en una misma Entrada (varias referencias) o Salida (varios
+  // materiales) -- ver supabase/migrations/0025_remision_campos_salida.sql.
+  // En Salida es ademas el numero impreso en la remision ("REM-000123");
+  // en Entrada solo sirve para agrupar la vista en Historial/Ultimos
+  // movimientos, no genera documento.
+  remision_numero: number | null;
+  // Los siguientes 4 solo se llenan en Salida, para la remision -- ver
+  // lib/remision.ts.
+  area_proyecto: string | null;
+  centro_costo_texto: string | null;
+  motivo_salida: string | null;
+  tipo_movimiento: string | null;
   registrado_por: string;
   creado_en: string;
 }
 
 // Version liviana de Movimiento para paneles de "ultimos movimientos"
-// (Dashboard, Movimientos) que no necesitan foto/adjunto/observaciones.
+// (Dashboard, Movimientos) y para Historial agrupado -- trae lo necesario
+// para agrupar varias filas en una (ver lib/agruparMovimientos.ts) y volver
+// a generar la remision desde ahi, sin el acta_entrega/registrado_por que
+// no hacen falta en ninguna de las dos pantallas.
 export interface MovimientoReciente {
   id: number;
   creado_en: string;
   tipo: TipoMovimiento;
   cantidad: number;
+  material_codigo: string;
   material_descripcion: string;
+  referencia_codigo: string | null;
   solicitante_nombre: string | null;
+  observaciones: string | null;
+  foto: string | null;
+  adjunto: string | null;
   ubicacion: string | null;
   ubicacion_origen: string | null;
+  remision_numero: number | null;
+  area_proyecto: string | null;
+  centro_costo_texto: string | null;
+  motivo_salida: string | null;
+  tipo_movimiento: string | null;
 }
 
 // Resultado de la funcion RPC resumen_movimientos_mensual() -- entradas y

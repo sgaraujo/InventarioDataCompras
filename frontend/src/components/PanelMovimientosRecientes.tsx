@@ -1,5 +1,9 @@
+import { useState } from "react";
+import { Layers } from "lucide-react";
 import type { MovimientoReciente } from "../api/types";
 import { money, textoUbicacionMovimiento } from "../lib/labels";
+import { agruparMovimientos, type FilaMovimiento } from "../lib/agruparMovimientos";
+import { DetalleMovimientoModal } from "./DetalleMovimientoModal";
 
 interface Props {
   movimientos: MovimientoReciente[];
@@ -8,6 +12,9 @@ interface Props {
 }
 
 export function PanelMovimientosRecientes({ movimientos, cargando, error }: Props) {
+  const [filaVista, setFilaVista] = useState<FilaMovimiento<MovimientoReciente> | null>(null);
+  const filas = agruparMovimientos(movimientos);
+
   return (
     <div className="panel">
       <h2>Últimos movimientos</h2>
@@ -36,29 +43,48 @@ export function PanelMovimientosRecientes({ movimientos, cargando, error }: Prop
                   No se pudieron cargar los movimientos ({error}).
                 </td>
               </tr>
-            ) : movimientos.length === 0 ? (
+            ) : filas.length === 0 ? (
               <tr>
                 <td colSpan={6} className="empty-state">
                   Aún no hay movimientos registrados.
                 </td>
               </tr>
             ) : (
-              movimientos.map((m) => (
-                <tr key={m.id}>
-                  <td>{new Date(m.creado_en).toLocaleString("es-CO")}</td>
-                  <td>{m.material_descripcion}</td>
+              filas.map((f) => (
+                <tr key={f.id}>
+                  <td>{new Date(f.creado_en).toLocaleString("es-CO")}</td>
                   <td>
-                    <span className={`badge ${m.tipo}`}>{m.tipo === "entrada" ? "Entrada" : "Salida"}</span>
+                    {f.esGrupo ? (
+                      <a
+                        href="#"
+                        className="link-detalle"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setFilaVista(f);
+                        }}
+                        title="Ver detalle"
+                      >
+                        {f.materialDescripcion || `Varios (${f.materialesDistintos})`}
+                        <Layers size={14} />
+                      </a>
+                    ) : (
+                      f.materialDescripcion
+                    )}
                   </td>
-                  <td>{money(m.cantidad)}</td>
-                  <td>{m.solicitante_nombre || "—"}</td>
-                  <td>{textoUbicacionMovimiento(m)}</td>
+                  <td>
+                    <span className={`badge ${f.tipo}`}>{f.tipo === "entrada" ? "Entrada" : "Salida"}</span>
+                  </td>
+                  <td>{f.cantidad != null ? money(f.cantidad) : "—"}</td>
+                  <td>{f.solicitanteNombre || "—"}</td>
+                  <td>{textoUbicacionMovimiento({ ubicacion: f.ubicacion, ubicacion_origen: f.ubicacionOrigen })}</td>
                 </tr>
               ))
             )}
           </tbody>
         </table>
       </div>
+
+      {filaVista && <DetalleMovimientoModal fila={filaVista} onClose={() => setFilaVista(null)} />}
     </div>
   );
 }

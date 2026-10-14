@@ -357,6 +357,15 @@ export function Movimientos() {
           })),
         });
       } else if (entradaMultiReferencia) {
+        // Mismo numero de lote que usa Salida para la remision (ver
+        // migracion 0025) -- aca no imprime nada, solo sirve para que
+        // Historial/Ultimos movimientos agrupen estas lineas en una fila.
+        let loteEntrada: number | null = null;
+        if (lineasReferencia.length > 1) {
+          const { data: loteData, error: loteError } = await supabase.rpc("siguiente_remision_numero");
+          if (loteError) throw loteError;
+          loteEntrada = loteData as number;
+        }
         const { error } = await supabase.from("movimientos").insert(
           lineasReferencia.map((l) => ({
             material_id: Number(form.material_id),
@@ -365,6 +374,7 @@ export function Movimientos() {
             referencia_id: l.referencia_id,
             solicitante_id: form.solicitante_id ? Number(form.solicitante_id) : null,
             observaciones: form.observaciones || null,
+            remision_numero: loteEntrada,
             ...(fotoUrl ? { foto: fotoUrl } : {}),
             ...(adjuntoUrl ? { adjunto: adjuntoUrl } : {}),
             ...(actaUrl ? { acta_entrega: actaUrl } : {}),

@@ -3,10 +3,12 @@ import { supabase } from "../api/supabaseClient";
 import { mapMovimientoJoin } from "../api/movimientos";
 import type { Movimiento } from "../api/types";
 import { money, textoUbicacionMovimiento } from "../lib/labels";
+import { agruparMovimientos, type FilaMovimiento } from "../lib/agruparMovimientos";
 import { Paginacion } from "../components/Paginacion";
 import { usePaginacion } from "../hooks/usePaginacion";
 import { Modal } from "../components/Modal";
-import { FileText, Image as ImageIcon } from "lucide-react";
+import { DetalleMovimientoModal } from "../components/DetalleMovimientoModal";
+import { FileText, Image as ImageIcon, Layers } from "lucide-react";
 
 const TAMANO_PAGINA = 25;
 
@@ -21,6 +23,7 @@ export function Historial() {
   const [filtroTexto, setFiltroTexto] = useState("");
 
   const [evidenciaVista, setEvidenciaVista] = useState<{ url: string; titulo: string } | null>(null);
+  const [filaVista, setFilaVista] = useState<FilaMovimiento<Movimiento> | null>(null);
 
   async function cargarMovimientos() {
     setCargando(true);
@@ -48,19 +51,25 @@ export function Historial() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtroTipo, filtroDesde, filtroHasta]);
 
-  const filtrados = movimientos.filter((m) => {
+  // Agrupa primero (con todos los movimientos, sin filtrar) para que una
+  // Entrada/Salida de varios materiales no se parta a la mitad por el texto
+  // buscado -- despues filtra las filas ya armadas, mirando si CUALQUIERA
+  // de los materiales que contiene hace match.
+  const filas = agruparMovimientos(movimientos);
+  const filtradas = filas.filter((f) => {
     if (!filtroTexto) return true;
     const t = filtroTexto.toLowerCase();
-    return (
-      m.material_descripcion.toLowerCase().includes(t) ||
-      m.material_codigo.toLowerCase().includes(t) ||
-      (m.referencia_codigo ?? "").toLowerCase().includes(t) ||
-      (m.solicitante_nombre ?? "").toLowerCase().includes(t)
+    return f.items.some(
+      (m) =>
+        m.material_descripcion.toLowerCase().includes(t) ||
+        m.material_codigo.toLowerCase().includes(t) ||
+        (m.referencia_codigo ?? "").toLowerCase().includes(t) ||
+        (m.solicitante_nombre ?? "").toLowerCase().includes(t)
     );
   });
 
   const { pageItems, total, totalPaginas, paginaActual, desde, hasta, irAPagina } = usePaginacion(
-    filtrados,
+    filtradas,
     TAMANO_PAGINA
   );
 
@@ -141,46 +150,63 @@ export function Historial() {
                   </td>
                 </tr>
               ) : (
-                pageItems.map((m) => (
-                  <tr key={m.id}>
-                    <td>{new Date(m.creado_en).toLocaleString("es-CO")}</td>
-                    <td>{m.material_codigo}</td>
-                    <td>{m.material_descripcion}</td>
-                    <td>{m.referencia_codigo || "—"}</td>
+                pageItems.map((f) => (
+                  <tr key={f.id}>
+                    <td>{new Date(f.creado_en).toLocaleString("es-CO")}</td>
+                    <td>{f.materialCodigo || "—"}</td>
                     <td>
-                      <span className={`badge ${m.tipo}`}>{m.tipo === "entrada" ? "Entrada" : "Salida"}</span>
+                      {f.esGrupo ? (
+                        <a
+                          href="#"
+                          className="link-detalle"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setFilaVista(f);
+                          }}
+                          title="Ver detalle"
+                        >
+                          {f.materialDescripcion || `Varios (${f.materialesDistintos})`}
+                          <Layers size={14} />
+                        </a>
+                      ) : (
+                        f.materialDescripcion
+                      )}
                     </td>
-                    <td>{money(m.cantidad)}</td>
-                    <td>{m.solicitante_nombre || "—"}</td>
-                    <td>{m.observaciones || "—"}</td>
-                    <td>{textoUbicacionMovimiento(m)}</td>
+                    <td>{f.referenciaCodigo || "—"}</td>
+                    <td>
+                      <span className={`badge ${f.tipo}`}>{f.tipo === "entrada" ? "Entrada" : "Salida"}</span>
+                    </td>
+                    <td>{f.cantidad != null ? money(f.cantidad) : "—"}</td>
+                    <td>{f.solicitanteNombre || "—"}</td>
+                    <td>{f.observaciones || "—"}</td>
+                    <td>{textoUbicacionMovimiento({ ubicacion: f.ubicacion, ubicacion_origen: f.ubicacionOrigen })}</td>
                     <td>
                       <div style={{ display: "flex", gap: 6 }}>
-                        {m.foto && (
+                        {f.foto && (
                           <button
                             type="button"
                             className="link-evidencia"
                             title="Ver foto"
                             onClick={() =>
-                              setEvidenciaVista({ url: m.foto!, titulo: `Foto — ${m.material_descripcion}` })
+                              setEvidenciaVista({ url: f.foto!, titulo: `Foto — ${f.materialDescripcion || "material"}` })
                             }
                           >
                             <ImageIcon size={16} />
                           </button>
                         )}
-                        {m.adjunto && (
+                        {f.adjunto && (
                           <button
                             type="button"
                             className="link-evidencia"
                             title="Ver soporte"
                             onClick={() =>
-                              setEvidenciaVista({ url: m.adjunto!, titulo: `Soporte — ${m.material_descripcion}` })
+                              setEvidenciaVista({ url: f.adjunto!, titulo: `Soporte — ${f.materialDescripcion || "material"}` })
                             }
                           >
                             <FileText size={16} />
                           </button>
                         )}
-                        {!m.foto && !m.adjunto && "—"}
+                        {!f.foto && !f.adjunto && "—"}
                       </div>
                     </td>
                   </tr>
@@ -217,6 +243,8 @@ export function Historial() {
           )}
         </Modal>
       )}
+
+      {filaVista && <DetalleMovimientoModal fila={filaVista} onClose={() => setFilaVista(null)} />}
     </section>
   );
 }

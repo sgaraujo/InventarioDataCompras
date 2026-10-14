@@ -891,29 +891,6 @@ form.form-grid button:disabled {
   font-size: 13.5px;
 }
 
-/* Mismo "look" que form.form-grid button.btn-secundario, pero este boton
-   vive fuera de cualquier form (el aviso aparece en el cuerpo de la pagina,
-   no dentro del modal), asi que esa regla no le aplicaba -- quedaba sin
-   fondo ni borde. Se repite aca en vez de depender del contexto. */
-.aviso-remision button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 9px 14px;
-  background: #fff;
-  color: var(--text-muted);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: 13.5px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.aviso-remision button:hover {
-  background: var(--bg);
-  color: var(--text);
-  border-color: var(--text-muted);
-}
 
 .btn-nuevo {
   display: inline-flex;
@@ -939,9 +916,39 @@ form.form-grid button:disabled {
 .btn-nuevo.danger:hover { background: var(--danger-bg); }
 .btn-nuevo.danger:focus-visible { outline-color: var(--danger); }
 
-/* Boton secundario: acciones que no son la principal del formulario (ej. Cancelar) */
+/* Boton secundario: acciones que no son la principal de un formulario (ej.
+   Cancelar, +Agregar, Ver/Imprimir) -- generica (no depende de estar dentro
+   de un form.form-grid) para que se pueda usar en cualquier parte sin que
+   quede sin estilo por el contexto en el que vive. */
+.btn-secundario {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 14px;
+  background: #fff;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-secundario:hover {
+  background: var(--bg);
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+.btn-secundario:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Dentro de un form.form-grid, la regla generica "form.form-grid button"
+   (fondo teal solido) pesa mas que la clase sola por especificidad -- este
+   selector vuelve a ganarle para que .btn-secundario se vea igual adentro
+   y afuera de un formulario. */
 form.form-grid button.btn-secundario {
-  background: transparent;
+  grid-column: auto;
+  background: #fff;
   color: var(--text-muted);
   border: 1px solid var(--border);
 }

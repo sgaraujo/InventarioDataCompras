@@ -5,8 +5,9 @@ import type { MovimientoReciente } from "../api/types";
 
 // Trae los ultimos N movimientos con material/solicitante ya resueltos.
 // Compartido por Dashboard y Movimientos para que la consulta y el mapeo no
-// se dupliquen (y queden desincronizados) entre las dos pantallas. Selecciona
-// solo las columnas que el panel muestra -- nada de foto/adjunto/observaciones.
+// se dupliquen (y queden desincronizados) entre las dos pantallas. Trae lo
+// necesario para agrupar filas de un mismo lote (ver lib/agruparMovimientos.ts)
+// y volver a generar la remision desde ahi.
 export function useMovimientosRecientes(limite: number) {
   const [movimientos, setMovimientos] = useState<MovimientoReciente[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -17,7 +18,10 @@ export function useMovimientosRecientes(limite: number) {
     const { data, error } = await supabase
       .from("movimientos")
       .select(
-        "id, creado_en, tipo, cantidad, ubicacion, ubicacion_origen, material_descripcion_snapshot, materiales(descripcion), solicitantes(nombre)"
+        "id, creado_en, tipo, cantidad, observaciones, foto, adjunto, ubicacion, ubicacion_origen, " +
+          "remision_numero, area_proyecto, centro_costo_texto, motivo_salida, tipo_movimiento, " +
+          "material_codigo_snapshot, material_descripcion_snapshot, referencia_codigo_snapshot, " +
+          "materiales(codigo, descripcion), material_referencias(codigo), solicitantes(nombre)"
       )
       .order("creado_en", { ascending: false })
       .limit(limite);
