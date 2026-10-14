@@ -69,6 +69,11 @@ export function Materiales() {
   const [nuevoCentroCosto, setNuevoCentroCosto] = useState("");
   const [creandoCentroCosto, setCreandoCentroCosto] = useState(false);
   const [referencias, setReferencias] = useState<ReferenciaForm[]>([]);
+  // Referencias ya guardadas que se marcaron para borrar -- se quitan de la
+  // base recien al darle "Guardar cambios" (igual que las nuevas recien se
+  // insertan ahi), no apenas le dan a la x.
+  const [referenciasAEliminar, setReferenciasAEliminar] = useState<number[]>([]);
+  const [confirmandoQuitarRef, setConfirmandoQuitarRef] = useState<{ index: number; codigo: string } | null>(null);
   const [nuevaRefCodigo, setNuevaRefCodigo] = useState("");
   const [nuevaRefUbicacion, setNuevaRefUbicacion] = useState("");
   const [nuevaRefFoto, setNuevaRefFoto] = useState<File | null>(null);
@@ -183,6 +188,7 @@ export function Materiales() {
     setFoto(null);
     setNuevoCentroCosto("");
     setReferencias([]);
+    setReferenciasAEliminar([]);
     setNuevaRefCodigo("");
     setNuevaRefUbicacion("");
     limpiarNuevaRefFoto();
@@ -211,6 +217,7 @@ export function Materiales() {
     setNuevaRefUbicacion("");
     limpiarNuevaRefFoto();
     setEditandoRefIndex(null);
+    setReferenciasAEliminar([]);
     setMensaje(null);
     setMostrarForm(true);
 
@@ -238,6 +245,7 @@ export function Materiales() {
     setFoto(null);
     setNuevoCentroCosto("");
     setReferencias([]);
+    setReferenciasAEliminar([]);
     setNuevaRefCodigo("");
     setNuevaRefUbicacion("");
     limpiarNuevaRefFoto();
@@ -277,10 +285,13 @@ export function Materiales() {
     setEditandoRefIndex(null);
   }
 
-  // Solo se pueden quitar de la lista las referencias que todavia no se han
-  // guardado (sin id) -- una vez guardada, borrarla es otra decision (podria
-  // tener movimientos encima) y no la maneja este formulario.
+  // Si la referencia ya tenia id (estaba guardada), queda marcada para
+  // borrar de verdad cuando le den "Guardar cambios" -- el FK de movimientos
+  // la deja en SET NULL (el codigo se conserva en el snapshot del
+  // historial), asi que no hay riesgo de perder el historial.
   function quitarReferencia(index: number) {
+    const ref = referencias[index];
+    if (ref.id) setReferenciasAEliminar((prev) => [...prev, ref.id!]);
     setReferencias((prev) => prev.filter((_, i) => i !== index));
     setEditandoRefIndex(null);
   }
@@ -371,9 +382,18 @@ export function Materiales() {
         if (errorUbicacion) throw errorUbicacion;
       }
 
+      if (referenciasAEliminar.length > 0) {
+        const { error: errorBorrar } = await supabase
+          .from("material_referencias")
+          .delete()
+          .in("id", referenciasAEliminar);
+        if (errorBorrar) throw errorBorrar;
+      }
+
       setMostrarForm(false);
       setForm(FORM_VACIO);
       setReferencias([]);
+      setReferenciasAEliminar([]);
       await cargarMateriales();
     } catch (err) {
       setMensaje({ texto: err instanceof Error ? err.message : "Error al guardar el material", tipo: "error" });
@@ -596,7 +616,8 @@ export function Materiales() {
             editandoRefIndex !== null ||
             nuevaRefCodigo.trim() !== "" ||
             nuevaRefUbicacion.trim() !== "" ||
-            Boolean(nuevaRefFoto)
+            Boolean(nuevaRefFoto) ||
+            referenciasAEliminar.length > 0
           }
         >
           <form className="form-grid" onSubmit={handleSubmit}>
@@ -787,11 +808,17 @@ export function Materiales() {
                               <Pencil size={11} />
                             </button>
                             {(r.archivo || r.foto) && <Camera size={12} aria-label="Con foto" />}
-                            {!r.id && (
-                              <button type="button" onClick={() => quitarReferencia(i)} aria-label={`Quitar ${r.codigo}`}>
-                                ×
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                r.id
+                                  ? setConfirmandoQuitarRef({ index: i, codigo: r.codigo })
+                                  : quitarReferencia(i)
+                              }
+                              aria-label={`Quitar ${r.codigo}`}
+                            >
+                              ×
+                            </button>
                           </span>
                         )
                       )}
@@ -1136,6 +1163,18 @@ export function Materiales() {
           descripcion="El documento se borra de esta referencia y no se puede recuperar."
           onConfirmar={() => borrarDocumentoReferencia(confirmandoBorrarDoc)}
           onCancelar={() => setConfirmandoBorrarDoc(null)}
+        />
+      )}
+
+      {confirmandoQuitarRef && (
+        <ConfirmDialog
+          titulo={`¿Eliminar la referencia "${confirmandoQuitarRef.codigo}"?`}
+          descripcion="Se quita de este material al darle Guardar cambios. Si tiene movimientos registrados, quedan en el historial sin referencia asociada (el código se conserva ahí)."
+          onConfirmar={() => {
+            quitarReferencia(confirmandoQuitarRef.index);
+            setConfirmandoQuitarRef(null);
+          }}
+          onCancelar={() => setConfirmandoQuitarRef(null)}
         />
       )}
 
