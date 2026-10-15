@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Boxes, Tags, PackagePlus, ScrollText, Users, Menu, LogOut } from "lucide-react";
+import { LayoutDashboard, Boxes, Tags, PackagePlus, ScrollText, Images, Users, Menu, LogOut } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { ROL_LABEL } from "../lib/labels";
 
@@ -10,6 +10,7 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   "/categorias": { title: "Categorías", subtitle: "Categorías disponibles para clasificar materiales" },
   "/movimientos": { title: "Movimientos", subtitle: "Registrar entradas y salidas de material" },
   "/historial": { title: "Historial", subtitle: "Historial completo de entradas y salidas" },
+  "/galeria": { title: "Galería", subtitle: "Registros fotográficos de salidas y envíos de material" },
   "/usuarios": { title: "Usuarios", subtitle: "Gestión de cuentas y roles del sistema" },
 };
 
@@ -57,6 +58,9 @@ export function Layout() {
           )}
           <NavLink to="/historial" className={claseNavItem}>
             <ScrollText className="icon" size={17} /> Historial
+          </NavLink>
+          <NavLink to="/galeria" className={claseNavItem}>
+            <Images className="icon" size={17} /> Galería
           </NavLink>
           {usuario?.rol === "admin" && (
             <NavLink to="/usuarios" className={claseNavItem}>

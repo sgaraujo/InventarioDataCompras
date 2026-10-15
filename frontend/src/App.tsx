@@ -9,6 +9,7 @@ import { Movimientos } from "./pages/Movimientos";
 import { Historial } from "./pages/Historial";
 import { Usuarios } from "./pages/Usuarios";
 import { Categorias } from "./pages/Categorias";
+import { Galeria } from "./pages/Galeria";
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
               <Route path="/materiales" element={<Materiales />} />
               <Route path="/categorias" element={<Categorias />} />
               <Route path="/historial" element={<Historial />} />
+              <Route path="/galeria" element={<Galeria />} />
               <Route element={<RoleGate roles={["admin", "almacenista"]} />}>
                 <Route path="/movimientos" element={<Movimientos />} />
               </Route>

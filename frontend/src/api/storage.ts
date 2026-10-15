@@ -7,7 +7,10 @@ const BUCKET = "evidencias";
 // material_referencias.foto, material_referencia_documentos.url,
 // movimientos.foto/adjunto). El bucket es publico para lectura, la escritura
 // requiere sesion (ver policies en supabase/migrations/0002_inventario.sql).
-export async function subirEvidencia(carpeta: "materiales" | "referencias" | "movimientos", archivo: File): Promise<string> {
+export async function subirEvidencia(
+  carpeta: "materiales" | "referencias" | "movimientos" | "galeria",
+  archivo: File
+): Promise<string> {
   const ruta = `${carpeta}/${Date.now()}-${archivo.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
   const { error } = await supabase.storage.from(BUCKET).upload(ruta, archivo);
   if (error) throw error;

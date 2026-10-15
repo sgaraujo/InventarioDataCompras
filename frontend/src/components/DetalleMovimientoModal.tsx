@@ -1,4 +1,5 @@
-import { Printer } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Images, Printer } from "lucide-react";
 import { Modal } from "./Modal";
 import { money } from "../lib/labels";
 import { abrirRemisionPdf, type DatosRemisionSalida, type TipoMovimientoRemision } from "../lib/remision";
@@ -74,6 +75,11 @@ export function DetalleMovimientoModal<T extends ItemAgrupable>({
           <button type="button" className="btn-secundario" onClick={verRemision}>
             <Printer size={14} /> Ver / Imprimir remisión
           </button>
+          {fila.remisionNumero != null && (
+            <Link className="btn-secundario" to={`/galeria?remision=${fila.remisionNumero}`} style={{ marginLeft: 8 }}>
+              <Images size={14} /> Fotos en Galería
+            </Link>
+          )}
         </div>
       )}
     </Modal>

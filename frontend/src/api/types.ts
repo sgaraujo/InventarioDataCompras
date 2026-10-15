@@ -42,6 +42,24 @@ export interface Categoria {
   creado_en: string;
 }
 
+// Modulo Galeria (ver 0026_galeria.sql): carpetas con nombre libre,
+// opcionalmente asociadas a una remision de salida, con sus fotos.
+export interface GaleriaCarpeta {
+  id: number;
+  nombre: string;
+  remision_numero: number | null;
+  creado_en: string;
+  total_fotos: number;
+}
+
+export interface GaleriaFoto {
+  id: number;
+  carpeta_id: number;
+  url: string;
+  nombre_archivo: string | null;
+  creado_en: string;
+}
+
 export interface Material {
   id: number;
   codigo: string;
