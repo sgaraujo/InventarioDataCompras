@@ -56,6 +56,11 @@ materiales reales con su historial de movimientos Feb-Mayo 2026) salen de
   solicitante, foto de evidencia, soporte documental). Admin y almacenista.
 - **Historial**: consulta y filtro de todos los movimientos, con enlaces a
   la foto/soporte de cada uno. Todos los roles (solo lectura).
+- **Galería**: carpetas con nombre para los registros fotográficos de
+  salidas y envíos, opcionalmente asociadas a una remisión (REM-xxxxxx) --
+  desde el detalle de una salida en Historial hay acceso directo a sus fotos.
+  Todos los roles crean/renombran carpetas y suben fotos; solo admin elimina.
+  Requiere la migración `0026_galeria.sql`.
 
 ## Pendiente para siguientes iteraciones
 

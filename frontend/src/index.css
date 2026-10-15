@@ -2367,3 +2367,225 @@ form.form-grid .tag-chip--editando button {
 }
 
 .link-evidencia:hover { color: var(--teal); }
+
+/* Galeria: carpetas con fotos de salidas/envios (ver pages/Galeria.tsx) */
+a.btn-secundario { text-decoration: none; }
+
+.galeria-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.galeria-buscar {
+  flex: 1;
+  min-width: 200px;
+  max-width: 340px;
+  margin-left: auto;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  background: #fff;
+  color: var(--text);
+}
+
+.galeria-buscar:focus { outline: none; border-color: var(--teal); }
+
+.galeria-form-acciones {
+  display: flex;
+  gap: 10px;
+}
+
+.galeria-filtro {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 6px 8px 6px 12px;
+  background: var(--teal-light);
+  color: var(--teal-dark);
+  border-radius: 999px;
+  font-size: 13px;
+}
+
+.galeria-filtro button {
+  display: inline-flex;
+  background: none;
+  border: none;
+  padding: 2px;
+  color: inherit;
+  cursor: pointer;
+}
+
+.galeria-carpetas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 14px;
+}
+
+.galeria-carpeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 16px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  text-align: left;
+  font: inherit;
+  color: var(--text);
+  cursor: pointer;
+  min-width: 0;
+}
+
+.galeria-carpeta:hover { border-color: var(--teal); }
+.galeria-carpeta:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }
+
+.galeria-carpeta__icono { color: var(--lime-dark); margin-bottom: 6px; }
+
+.galeria-carpeta__nombre {
+  font-weight: 600;
+  font-size: 14.5px;
+  overflow-wrap: anywhere;
+}
+
+.galeria-carpeta__meta {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.galeria-carpeta__remision {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--teal-light);
+  color: var(--teal-dark);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.galeria-detalle__cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.panel .galeria-detalle__titulo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+  overflow-wrap: anywhere;
+}
+
+.galeria-detalle__acciones {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.galeria-renombrar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.galeria-renombrar input {
+  flex: 1;
+  min-width: 180px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.galeria-renombrar input:focus { outline: none; border-color: var(--teal); }
+
+.galeria-vacia {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+}
+
+.galeria-fotos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.galeria-foto {
+  aspect-ratio: 1;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg);
+  cursor: zoom-in;
+}
+
+.galeria-foto img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.galeria-foto:hover { border-color: var(--teal); }
+.galeria-foto:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }
+
+.galeria-visor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.galeria-visor img {
+  flex: 1;
+  min-width: 0;
+  max-height: 65vh;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.galeria-visor__nav {
+  display: inline-flex;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.galeria-visor__nav:disabled { opacity: 0.35; cursor: default; }
+.galeria-visor__nav:not(:disabled):hover { color: var(--teal-dark); border-color: var(--teal); }
+
+.galeria-visor__acciones {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.galeria-visor__acciones .galeria-carpeta__meta { margin-right: auto; }
+
+@media (max-width: 640px) {
+  .galeria-buscar { max-width: none; margin-left: 0; }
+  .galeria-fotos { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+}
