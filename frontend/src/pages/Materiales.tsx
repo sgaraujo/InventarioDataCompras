@@ -11,7 +11,7 @@ import type {
   MaterialReferenciaEstado,
 } from "../api/types";
 import { esAdmin, money, puedeEditar } from "../lib/labels";
-import { descargarCsv } from "../lib/csv";
+import { descargarExcel } from "../lib/exportarExcel";
 import { useAuth } from "../context/AuthContext";
 import { Modal } from "../components/Modal";
 import { ConfirmDialog } from "../components/ConfirmDialog";
@@ -175,7 +175,7 @@ export function Materiales() {
   // columnas vacias o un "Varios" que no dice nada util, se exporta una fila
   // por cada referencia (con el codigo/descripcion del material repetido) y
   // asi el archivo sirve para un inventario fisico real, serial por serial.
-  async function exportarCsv() {
+  async function exportarExcel() {
     setExportando(true);
     try {
       const idsConReferencia = materialesFiltrados.filter((m) => m.maneja_referencias).map((m) => m.id);
@@ -224,20 +224,21 @@ export function Materiales() {
         }
       }
 
-      descargarCsv(
-        `materiales_${new Date().toISOString().slice(0, 10)}.csv`,
+      await descargarExcel(
+        `materiales_${new Date().toISOString().slice(0, 10)}.xlsx`,
+        "Materiales",
         [
-          "Código",
-          "Descripción",
-          "Empresa",
-          "Centro de costo",
-          "Categoría",
-          "Estado",
-          "Referencia",
-          "Ubicación",
-          "Stock",
-          "Precio unitario",
-          "Valor total",
+          { encabezado: "Código", ancho: 14 },
+          { encabezado: "Descripción", ancho: 42 },
+          { encabezado: "Empresa", ancho: 20 },
+          { encabezado: "Centro de costo", ancho: 20 },
+          { encabezado: "Categoría", ancho: 16 },
+          { encabezado: "Estado", ancho: 10 },
+          { encabezado: "Referencia", ancho: 16 },
+          { encabezado: "Ubicación", ancho: 24 },
+          { encabezado: "Stock", ancho: 10, formato: "#,##0" },
+          { encabezado: "Precio unitario", ancho: 16, formato: '"$"#,##0' },
+          { encabezado: "Valor total", ancho: 16, formato: '"$"#,##0' },
         ],
         filas
       );
@@ -617,8 +618,8 @@ export function Materiales() {
             + Nuevo material
           </button>
         )}
-        <button type="button" className="btn-secundario" onClick={exportarCsv} disabled={exportando}>
-          <Download size={14} /> {exportando ? "Exportando..." : "Exportar CSV"}
+        <button type="button" className="btn-secundario" onClick={exportarExcel} disabled={exportando}>
+          <Download size={14} /> {exportando ? "Exportando..." : "Exportar Excel"}
         </button>
       </div>
 
