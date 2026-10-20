@@ -11,12 +11,13 @@ import type {
   MaterialReferenciaEstado,
 } from "../api/types";
 import { esAdmin, money, puedeEditar } from "../lib/labels";
+import { descargarCsv } from "../lib/csv";
 import { useAuth } from "../context/AuthContext";
 import { Modal } from "../components/Modal";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Paginacion } from "../components/Paginacion";
 import { usePaginacion } from "../hooks/usePaginacion";
-import { Pencil, ImageOff, Layers, Camera, FileText, Paperclip } from "lucide-react";
+import { Pencil, ImageOff, Layers, Camera, FileText, Paperclip, Download } from "lucide-react";
 
 const TAMANO_PAGINA = 25;
 
@@ -91,6 +92,7 @@ export function Materiales() {
   const [cargandoReferenciasEstado, setCargandoReferenciasEstado] = useState(false);
   const [mensaje, setMensaje] = useState<{ texto: string; tipo: "ok" | "error" } | null>(null);
   const [guardando, setGuardando] = useState(false);
+  const [exportando, setExportando] = useState(false);
   const [mostrarForm, setMostrarForm] = useState(false);
   const editando = form.id !== null;
   const formInicialRef = useRef(FORM_VACIO);
@@ -165,6 +167,84 @@ export function Materiales() {
     materialesFiltrados,
     TAMANO_PAGINA
   );
+
+  // Exporta lo que esta filtrado en pantalla (busqueda/empresa/categoria/
+  // existencias), no solo la pagina actual. Un material "maneja_referencias"
+  // no tiene un solo stock/ubicacion/precio -- cada referencia es su propia
+  // unidad con su propio valor, asi que en vez de una fila por material con
+  // columnas vacias o un "Varios" que no dice nada util, se exporta una fila
+  // por cada referencia (con el codigo/descripcion del material repetido) y
+  // asi el archivo sirve para un inventario fisico real, serial por serial.
+  async function exportarCsv() {
+    setExportando(true);
+    try {
+      const idsConReferencia = materialesFiltrados.filter((m) => m.maneja_referencias).map((m) => m.id);
+      const referenciasPorMaterial: Record<number, MaterialReferenciaEstado[]> = {};
+      if (idsConReferencia.length > 0) {
+        const { data } = await supabase
+          .from("material_referencias_estado")
+          .select("*")
+          .in("material_id", idsConReferencia)
+          .order("codigo");
+        for (const r of (data as MaterialReferenciaEstado[]) ?? []) {
+          (referenciasPorMaterial[r.material_id] ??= []).push(r);
+        }
+      }
+
+      const filas: (string | number | null)[][] = [];
+      for (const m of materialesFiltrados) {
+        const base = [
+          m.codigo,
+          m.descripcion,
+          m.empresa_nombre,
+          m.centro_costo_nombre ?? "",
+          m.categoria_nombre ?? "",
+          m.activo ? "Activo" : "Inactivo",
+        ];
+        if (!m.maneja_referencias) {
+          filas.push([
+            ...base,
+            "",
+            m.ubicacion ?? "",
+            m.stock_actual,
+            m.precio_unitario ?? "",
+            m.precio_unitario != null ? m.precio_unitario * m.stock_actual : "",
+          ]);
+          continue;
+        }
+        const refs = referenciasPorMaterial[m.id] ?? [];
+        if (refs.length === 0) {
+          // maneja referencias pero todavia no tiene ninguna cargada -- igual
+          // sale en el export (una fila, sin perderlo) con stock en 0.
+          filas.push([...base, "", m.ubicacion ?? "", 0, "", ""]);
+          continue;
+        }
+        for (const r of refs) {
+          filas.push([...base, r.codigo, r.ubicacion ?? "", r.stock_disponible, r.precio_unitario ?? "", r.valor_total ?? ""]);
+        }
+      }
+
+      descargarCsv(
+        `materiales_${new Date().toISOString().slice(0, 10)}.csv`,
+        [
+          "Código",
+          "Descripción",
+          "Empresa",
+          "Centro de costo",
+          "Categoría",
+          "Estado",
+          "Referencia",
+          "Ubicación",
+          "Stock",
+          "Precio unitario",
+          "Valor total",
+        ],
+        filas
+      );
+    } finally {
+      setExportando(false);
+    }
+  }
 
   function cambiarEmpresaFiltro(valor: string) {
     const next = new URLSearchParams(searchParams);
@@ -531,13 +611,16 @@ export function Materiales() {
 
   return (
     <section className="view">
-      {editable && (
-        <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: 16, display: "flex", gap: 10 }}>
+        {editable && (
           <button type="button" className="btn-nuevo" onClick={abrirNuevo}>
             + Nuevo material
           </button>
-        </div>
-      )}
+        )}
+        <button type="button" className="btn-secundario" onClick={exportarCsv} disabled={exportando}>
+          <Download size={14} /> {exportando ? "Exportando..." : "Exportar CSV"}
+        </button>
+      </div>
 
       <div className="categoria-pills">
         <button
