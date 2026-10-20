@@ -37,8 +37,10 @@ interface ReferenciaForm {
   id?: number;
   codigo: string;
   ubicacion: string;
-  // Ubicacion tal como vino de la base (solo referencias ya guardadas) --
-  // para saber al guardar cuales cambiaron y actualizar solo esas.
+  // Codigo y ubicacion tal como vinieron de la base (solo referencias ya
+  // guardadas) -- para saber al guardar cuales cambiaron y actualizar solo
+  // esas.
+  codigoOriginal?: string;
   ubicacionOriginal?: string;
   foto?: string | null;
   // Foto elegida para una referencia nueva, se sube recien al guardar.
@@ -79,6 +81,7 @@ export function Materiales() {
   const [nuevaRefUbicacion, setNuevaRefUbicacion] = useState("");
   const [nuevaRefFoto, setNuevaRefFoto] = useState<File | null>(null);
   const [editandoRefIndex, setEditandoRefIndex] = useState<number | null>(null);
+  const [codigoEditado, setCodigoEditado] = useState("");
   const [ubicacionEditada, setUbicacionEditada] = useState("");
   const nuevaRefFotoInputRef = useRef<HTMLInputElement>(null);
   const [subiendoFotoRefId, setSubiendoFotoRefId] = useState<number | null>(null);
@@ -312,6 +315,7 @@ export function Materiales() {
         ((data as { id: number; codigo: string; ubicacion: string | null; foto: string | null }[]) ?? []).map((r) => ({
           ...r,
           ubicacion: r.ubicacion ?? "",
+          codigoOriginal: r.codigo,
           ubicacionOriginal: r.ubicacion ?? "",
         }))
       );
@@ -352,18 +356,32 @@ export function Materiales() {
     limpiarNuevaRefFoto();
   }
 
-  function empezarEditarUbicacion(index: number) {
+  function empezarEditarReferencia(index: number) {
     setEditandoRefIndex(index);
+    setCodigoEditado(referencias[index].codigo);
     setUbicacionEditada(referencias[index].ubicacion);
   }
 
   // Solo cambia la lista en memoria -- se guarda en la base con el resto del
-  // formulario ("Guardar cambios").
-  function aplicarUbicacionEditada() {
+  // formulario ("Guardar cambios"). El codigo tambien es editable aca (antes
+  // solo se podia cambiar la ubicacion); material_referencias tiene un
+  // unique(material_id, codigo), por eso se valida que no choque con otra
+  // referencia de la misma lista antes de aplicar.
+  function aplicarEdicionReferencia() {
     if (editandoRefIndex === null) return;
+    const codigo = codigoEditado.trim();
     const ubicacion = ubicacionEditada.trim();
-    setReferencias((prev) => prev.map((r, i) => (i === editandoRefIndex ? { ...r, ubicacion } : r)));
+    if (!codigo) {
+      setMensaje({ texto: "El código de la referencia no puede quedar vacío.", tipo: "error" });
+      return;
+    }
+    if (referencias.some((r, i) => i !== editandoRefIndex && r.codigo.toLowerCase() === codigo.toLowerCase())) {
+      setMensaje({ texto: `La referencia "${codigo}" ya está en la lista.`, tipo: "error" });
+      return;
+    }
+    setReferencias((prev) => prev.map((r, i) => (i === editandoRefIndex ? { ...r, codigo, ubicacion } : r)));
     setEditandoRefIndex(null);
+    setMensaje(null);
   }
 
   // Si la referencia ya tenia id (estaba guardada), queda marcada para
@@ -452,15 +470,20 @@ export function Materiales() {
         if (errorRefs) throw errorRefs;
       }
 
-      const ubicacionesCambiadas = referencias.filter((r) => r.id && r.ubicacion !== r.ubicacionOriginal);
-      if (form.maneja_referencias && ubicacionesCambiadas.length > 0) {
+      const referenciasCambiadas = referencias.filter(
+        (r) => r.id && (r.codigo !== r.codigoOriginal || r.ubicacion !== r.ubicacionOriginal)
+      );
+      if (form.maneja_referencias && referenciasCambiadas.length > 0) {
         const resultados = await Promise.all(
-          ubicacionesCambiadas.map((r) =>
-            supabase.from("material_referencias").update({ ubicacion: r.ubicacion || null }).eq("id", r.id!)
+          referenciasCambiadas.map((r) =>
+            supabase
+              .from("material_referencias")
+              .update({ codigo: r.codigo, ubicacion: r.ubicacion || null })
+              .eq("id", r.id!)
           )
         );
-        const errorUbicacion = resultados.find((res) => res.error)?.error;
-        if (errorUbicacion) throw errorUbicacion;
+        const errorCambios = resultados.find((res) => res.error)?.error;
+        if (errorCambios) throw errorCambios;
       }
 
       if (referenciasAEliminar.length > 0) {
@@ -477,7 +500,16 @@ export function Materiales() {
       setReferenciasAEliminar([]);
       await cargarMateriales();
     } catch (err) {
-      setMensaje({ texto: err instanceof Error ? err.message : "Error al guardar el material", tipo: "error" });
+      const codigoError = (err as { code?: string } | null)?.code;
+      setMensaje({
+        texto:
+          codigoError === "23505"
+            ? "No se puede guardar: dos referencias quedaron con el mismo código. Corrige el código repetido."
+            : err instanceof Error
+              ? err.message
+              : "Error al guardar el material",
+        tipo: "error",
+      });
     } finally {
       setGuardando(false);
     }
@@ -696,7 +728,7 @@ export function Materiales() {
             JSON.stringify(form) !== JSON.stringify(formInicialRef.current) ||
             Boolean(foto) ||
             nuevoCentroCosto.trim() !== "" ||
-            referencias.some((r) => !r.id || r.ubicacion !== r.ubicacionOriginal) ||
+            referencias.some((r) => !r.id || r.codigo !== r.codigoOriginal || r.ubicacion !== r.ubicacionOriginal) ||
             editandoRefIndex !== null ||
             nuevaRefCodigo.trim() !== "" ||
             nuevaRefUbicacion.trim() !== "" ||
@@ -853,26 +885,43 @@ export function Materiales() {
                       {referencias.map((r, i) =>
                         editandoRefIndex === i ? (
                           <span key={r.id ?? `${r.codigo}-${i}`} className="tag-chip tag-chip--editando">
-                            {r.codigo} —
                             <input
                               type="text"
                               autoFocus
                               spellCheck={false}
-                              placeholder="Ubicación"
-                              value={ubicacionEditada}
-                              onChange={(e) => setUbicacionEditada(e.target.value)}
+                              placeholder="Código"
+                              value={codigoEditado}
+                              onChange={(e) => setCodigoEditado(e.target.value)}
+                              style={{ width: 90 }}
                               onKeyDown={(e) => {
                                 // Enter no debe enviar el formulario entero, solo aplicar este cambio.
                                 if (e.key === "Enter") {
                                   e.preventDefault();
-                                  aplicarUbicacionEditada();
+                                  aplicarEdicionReferencia();
                                 } else if (e.key === "Escape") {
                                   e.stopPropagation();
                                   setEditandoRefIndex(null);
                                 }
                               }}
                             />
-                            <button type="button" onClick={aplicarUbicacionEditada} aria-label="Aplicar ubicación">
+                            —
+                            <input
+                              type="text"
+                              spellCheck={false}
+                              placeholder="Ubicación"
+                              value={ubicacionEditada}
+                              onChange={(e) => setUbicacionEditada(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  aplicarEdicionReferencia();
+                                } else if (e.key === "Escape") {
+                                  e.stopPropagation();
+                                  setEditandoRefIndex(null);
+                                }
+                              }}
+                            />
+                            <button type="button" onClick={aplicarEdicionReferencia} aria-label="Aplicar cambios">
                               ✓
                             </button>
                             <button type="button" onClick={() => setEditandoRefIndex(null)} aria-label="Cancelar">
@@ -884,8 +933,8 @@ export function Materiales() {
                             <button
                               type="button"
                               className="tag-chip__editar"
-                              onClick={() => empezarEditarUbicacion(i)}
-                              title="Editar ubicación"
+                              onClick={() => empezarEditarReferencia(i)}
+                              title="Editar código/ubicación"
                             >
                               {r.codigo}
                               {r.ubicacion ? ` — ${r.ubicacion}` : ""}
