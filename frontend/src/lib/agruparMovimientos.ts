@@ -111,7 +111,12 @@ export function agruparMovimientos<T extends ItemAgrupable>(movs: T[]): FilaMovi
   }
   for (const m of movs) {
     if (idsAgrupados.has(m.id)) continue;
-    filas.push(filaDesdeItems([m], null));
+    // Antes se forzaba "null" aca, lo que le borraba el remision_numero a
+    // cualquier Salida que quedara sola (sin agrupar con otras) -- por eso
+    // nunca le aparecia el link para volver a ver su remision, aunque el
+    // dato si estuviera guardado. Se le pasa el remision_numero real del
+    // propio movimiento (sigue siendo null si de verdad no tiene uno).
+    filas.push(filaDesdeItems([m], m.remision_numero));
   }
 
   filas.sort((a, b) => new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime());
