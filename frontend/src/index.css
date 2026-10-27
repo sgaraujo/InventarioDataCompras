@@ -1944,6 +1944,23 @@ form.form-grid button.btn-secundario:hover {
   padding: 0;
 }
 
+/* Version generica del modo "editando" de un chip (ver tambien el override
+   scoped a form.form-grid mas abajo, para cuando vive dentro de un
+   formulario asi) -- sin esto, un chip editable fuera de un form.form-grid
+   (ej. asociar remision en Galeria) quedaba con el input/boton sin estilo. */
+.tag-chip--editando input {
+  width: 80px;
+  padding: 3px 8px;
+  font-size: 12.5px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+
+.tag-chip--editando button {
+  font-size: 14px;
+  padding: 0 3px;
+}
+
 /* Fila resaltada al llegar desde una notificacion */
 .fila-resaltada {
   animation: resaltado 2.5s ease-out;
@@ -2488,6 +2505,14 @@ a.btn-secundario { text-decoration: none; }
   align-items: flex-start;
   gap: 14px;
   flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.galeria-remisiones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 16px;
 }
 

@@ -49,18 +49,34 @@ export function Galeria() {
   const [remision, setRemision] = useState("");
   const [guardando, setGuardando] = useState(false);
 
+  // Buscador para asociar la remision actual (?remision=X, viene de
+  // Historial) a una carpeta YA existente, en vez de obligar a crear una
+  // nueva cada vez -- ver discusion 2026-10-27.
+  const [mostrarAsociar, setMostrarAsociar] = useState(false);
+  const [busquedaAsociar, setBusquedaAsociar] = useState("");
+  const [asociando, setAsociando] = useState<number | null>(null);
+
   async function cargarCarpetas() {
     setCargando(true);
     const { data, error } = await supabase
       .from("galeria_carpetas")
-      .select("id, nombre, remision_numero, creado_en, galeria_fotos(count)")
+      .select("id, nombre, creado_en, galeria_fotos(count), galeria_carpeta_remisiones(remision_numero)")
       .order("creado_en", { ascending: false });
     if (error) setMensaje({ texto: error.message, tipo: "error" });
-    type Fila = Omit<GaleriaCarpeta, "total_fotos"> & { galeria_fotos: { count: number }[] };
+    type Fila = {
+      id: number;
+      nombre: string;
+      creado_en: string;
+      galeria_fotos: { count: number }[];
+      galeria_carpeta_remisiones: { remision_numero: number }[];
+    };
     setCarpetas(
-      ((data as Fila[] | null) ?? []).map(({ galeria_fotos, ...c }) => ({
-        ...c,
-        total_fotos: galeria_fotos[0]?.count ?? 0,
+      ((data as Fila[] | null) ?? []).map((c) => ({
+        id: c.id,
+        nombre: c.nombre,
+        creado_en: c.creado_en,
+        total_fotos: c.galeria_fotos[0]?.count ?? 0,
+        remisiones: c.galeria_carpeta_remisiones.map((r) => r.remision_numero).sort((a, b) => a - b),
       }))
     );
     setCargando(false);
@@ -90,6 +106,20 @@ export function Galeria() {
     setRemision("");
   }
 
+  // Valida que de verdad exista una salida con ese numero antes de dejar
+  // asociarla a una carpeta (entradas tambien guardan un numero de lote en
+  // remision_numero, ver Movimientos.tsx, por eso se valida contra salidas
+  // solamente).
+  async function existeRemisionDeSalida(remisionNumero: number): Promise<boolean> {
+    const { count, error } = await supabase
+      .from("movimientos")
+      .select("id", { count: "exact", head: true })
+      .eq("tipo", "salida")
+      .eq("remision_numero", remisionNumero);
+    if (error) throw error;
+    return Boolean(count);
+  }
+
   async function handleCrear(e: FormEvent) {
     e.preventDefault();
     setMensaje(null);
@@ -100,34 +130,50 @@ export function Galeria() {
     }
     setGuardando(true);
     try {
-      if (remisionNumero != null) {
-        // Entradas tambien guardan un numero de lote en remision_numero (ver
-        // Movimientos.tsx), por eso se valida contra salidas solamente.
-        const { count, error } = await supabase
-          .from("movimientos")
-          .select("id", { count: "exact", head: true })
-          .eq("tipo", "salida")
-          .eq("remision_numero", remisionNumero);
-        if (error) throw error;
-        if (!count) {
-          setMensaje({ texto: `No existe una salida con la remisión ${textoRemision(remisionNumero)}.`, tipo: "error" });
-          return;
-        }
+      if (remisionNumero != null && !(await existeRemisionDeSalida(remisionNumero))) {
+        setMensaje({ texto: `No existe una salida con la remisión ${textoRemision(remisionNumero)}.`, tipo: "error" });
+        return;
       }
-      const { data, error } = await supabase
-        .from("galeria_carpetas")
-        .insert({ nombre: nombre.trim(), remision_numero: remisionNumero })
-        .select("id")
-        .single();
+      const { data, error } = await supabase.from("galeria_carpetas").insert({ nombre: nombre.trim() }).select("id").single();
       if (error) throw error;
+      const nuevaId = (data as { id: number }).id;
+      if (remisionNumero != null) {
+        const { error: errorLink } = await supabase
+          .from("galeria_carpeta_remisiones")
+          .insert({ carpeta_id: nuevaId, remision_numero: remisionNumero });
+        if (errorLink) throw errorLink;
+      }
       cerrarForm();
       await cargarCarpetas();
-      abrirCarpeta((data as { id: number }).id);
+      abrirCarpeta(nuevaId);
     } catch (err) {
       setMensaje({ texto: err instanceof Error ? err.message : "No se pudo crear la carpeta", tipo: "error" });
     } finally {
       setGuardando(false);
     }
+  }
+
+  // Deja la carpeta ya existente elegida desde el buscador (ver mas abajo)
+  // asociada a la remision con la que se llego filtrando desde Historial.
+  async function asociarCarpetaExistente(carpetaId: number) {
+    if (remisionFiltro == null) return;
+    setAsociando(carpetaId);
+    setMensaje(null);
+    const { error } = await supabase
+      .from("galeria_carpeta_remisiones")
+      .insert({ carpeta_id: carpetaId, remision_numero: remisionFiltro });
+    setAsociando(null);
+    if (error) {
+      setMensaje({
+        texto: error.code === "23505" ? "Esa carpeta ya está asociada a esta remisión." : error.message,
+        tipo: "error",
+      });
+      return;
+    }
+    setMostrarAsociar(false);
+    setBusquedaAsociar("");
+    await cargarCarpetas();
+    abrirCarpeta(carpetaId);
   }
 
   const carpetaAbierta = carpetaId != null ? carpetas.find((c) => c.id === carpetaId) ?? null : null;
@@ -145,18 +191,18 @@ export function Galeria() {
 
   const termino = busqueda.trim().toLowerCase();
   const visibles = carpetas.filter((c) => {
-    if (remisionFiltro != null && c.remision_numero !== remisionFiltro) return false;
+    if (remisionFiltro != null && !c.remisiones.includes(remisionFiltro)) return false;
     if (!termino) return true;
     return (
       c.nombre.toLowerCase().includes(termino) ||
-      (c.remision_numero != null && textoRemision(c.remision_numero).toLowerCase().includes(termino))
+      c.remisiones.some((r) => textoRemision(r).toLowerCase().includes(termino))
     );
   });
 
   return (
     <section className="view">
       <div className="galeria-toolbar">
-        {!mostrarForm && (
+        {!mostrarForm && !mostrarAsociar && (
           <button
             type="button"
             className="btn-nuevo"
@@ -169,6 +215,19 @@ export function Galeria() {
             + Nueva carpeta
           </button>
         )}
+        {remisionFiltro != null && !mostrarForm && !mostrarAsociar && (
+          <button
+            type="button"
+            className="btn-secundario"
+            onClick={() => {
+              setMostrarAsociar(true);
+              setBusquedaAsociar("");
+              setMensaje(null);
+            }}
+          >
+            Asociar con una carpeta existente
+          </button>
+        )}
         <input
           type="search"
           className="galeria-buscar"
@@ -177,6 +236,48 @@ export function Galeria() {
           onChange={(e) => setBusqueda(e.target.value)}
         />
       </div>
+
+      {mostrarAsociar && (
+        <div className="panel panel--form">
+          <h2>Asociar la remisión {remisionFiltro != null ? textoRemision(remisionFiltro) : ""} con una carpeta existente</h2>
+          <input
+            type="search"
+            autoFocus
+            placeholder="Buscar carpeta por nombre..."
+            value={busquedaAsociar}
+            onChange={(e) => setBusquedaAsociar(e.target.value)}
+          />
+          <div className="galeria-carpetas" style={{ marginTop: 12 }}>
+            {carpetas.length === 0 ? (
+              <div className="empty-state">No hay ninguna carpeta creada todavía.</div>
+            ) : (
+              carpetas
+                .filter((c) => c.nombre.toLowerCase().includes(busquedaAsociar.trim().toLowerCase()))
+                .map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className="galeria-carpeta"
+                    disabled={asociando === c.id}
+                    onClick={() => asociarCarpetaExistente(c.id)}
+                  >
+                    <Folder className="galeria-carpeta__icono" size={34} />
+                    <span className="galeria-carpeta__nombre">{c.nombre}</span>
+                    <span className="galeria-carpeta__meta">
+                      {c.total_fotos} foto{c.total_fotos === 1 ? "" : "s"}
+                      {c.remisiones.length > 0 ? ` · ${c.remisiones.length} remisión(es)` : ""}
+                    </span>
+                  </button>
+                ))
+            )}
+          </div>
+          <div className="full galeria-form-acciones" style={{ marginTop: 12 }}>
+            <button type="button" className="btn-secundario" onClick={() => setMostrarAsociar(false)}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
 
       {mostrarForm && (
         <div className="panel panel--form">
@@ -254,8 +355,8 @@ export function Galeria() {
                 {c.total_fotos} foto{c.total_fotos === 1 ? "" : "s"} ·{" "}
                 {new Date(c.creado_en).toLocaleDateString("es-CO")}
               </span>
-              {c.remision_numero != null && (
-                <span className="galeria-carpeta__remision">{textoRemision(c.remision_numero)}</span>
+              {c.remisiones.length > 0 && (
+                <span className="galeria-carpeta__remision">{c.remisiones.map(textoRemision).join(", ")}</span>
               )}
             </button>
           ))}
@@ -286,6 +387,67 @@ function CarpetaDetalle({
   const [confirmarFoto, setConfirmarFoto] = useState<GaleriaFoto | null>(null);
   const [confirmarCarpeta, setConfirmarCarpeta] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Remisiones asociadas a esta carpeta -- copia local editable, se
+  // resincroniza si carpeta.remisiones cambia por fuera (ej. onCambio tras
+  // subir una foto).
+  const [remisiones, setRemisiones] = useState<number[]>(carpeta.remisiones);
+  useEffect(() => {
+    setRemisiones(carpeta.remisiones);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [carpeta.remisiones.join(",")]);
+  const [agregandoRemision, setAgregandoRemision] = useState(false);
+  const [textoRemisionNueva, setTextoRemisionNueva] = useState("");
+  const [guardandoRemision, setGuardandoRemision] = useState(false);
+
+  async function agregarRemision(e: FormEvent) {
+    e.preventDefault();
+    const n = parsearRemision(textoRemisionNueva);
+    if (n == null || Number.isNaN(n)) {
+      setMensaje({ texto: "Número de remisión no válido (ej. REM-000034 o 34).", tipo: "error" });
+      return;
+    }
+    setGuardandoRemision(true);
+    const { count, error: errorCheck } = await supabase
+      .from("movimientos")
+      .select("id", { count: "exact", head: true })
+      .eq("tipo", "salida")
+      .eq("remision_numero", n);
+    if (errorCheck || !count) {
+      setGuardandoRemision(false);
+      setMensaje({ texto: `No existe una salida con la remisión ${textoRemision(n)}.`, tipo: "error" });
+      return;
+    }
+    const { error } = await supabase
+      .from("galeria_carpeta_remisiones")
+      .insert({ carpeta_id: carpeta.id, remision_numero: n });
+    setGuardandoRemision(false);
+    if (error) {
+      setMensaje({
+        texto: error.code === "23505" ? "Esa remisión ya está asociada a esta carpeta." : error.message,
+        tipo: "error",
+      });
+      return;
+    }
+    setRemisiones((prev) => [...prev, n].sort((a, b) => a - b));
+    setTextoRemisionNueva("");
+    setAgregandoRemision(false);
+    await onCambio();
+  }
+
+  async function quitarRemision(n: number) {
+    const { error } = await supabase
+      .from("galeria_carpeta_remisiones")
+      .delete()
+      .eq("carpeta_id", carpeta.id)
+      .eq("remision_numero", n);
+    if (error) {
+      setMensaje({ texto: error.message, tipo: "error" });
+      return;
+    }
+    setRemisiones((prev) => prev.filter((r) => r !== n));
+    await onCambio();
+  }
 
   async function cargarFotos() {
     setCargando(true);
@@ -434,12 +596,6 @@ function CarpetaDetalle({
               <div className="galeria-carpeta__meta">
                 {fotos.length} foto{fotos.length === 1 ? "" : "s"} · creada el{" "}
                 {new Date(carpeta.creado_en).toLocaleDateString("es-CO")}
-                {carpeta.remision_numero != null && (
-                  <>
-                    {" "}
-                    · <span className="galeria-carpeta__remision">{textoRemision(carpeta.remision_numero)}</span>
-                  </>
-                )}
               </div>
             </div>
           )}
@@ -468,6 +624,53 @@ function CarpetaDetalle({
               </button>
             )}
           </div>
+        </div>
+
+        <div className="galeria-remisiones">
+          {remisiones.map((r) => (
+            <span key={r} className="tag-chip">
+              {textoRemision(r)}
+              <button type="button" onClick={() => quitarRemision(r)} aria-label={`Quitar ${textoRemision(r)}`}>
+                ×
+              </button>
+            </span>
+          ))}
+          {agregandoRemision ? (
+            <form className="tag-chip tag-chip--editando" onSubmit={agregarRemision}>
+              <input
+                type="text"
+                autoFocus
+                placeholder="Ej. 34"
+                value={textoRemisionNueva}
+                onChange={(e) => setTextoRemisionNueva(e.target.value)}
+                style={{ width: 80 }}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") {
+                    e.stopPropagation();
+                    setAgregandoRemision(false);
+                    setTextoRemisionNueva("");
+                  }
+                }}
+              />
+              <button type="submit" disabled={guardandoRemision} aria-label="Agregar remisión">
+                ✓
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAgregandoRemision(false);
+                  setTextoRemisionNueva("");
+                }}
+                aria-label="Cancelar"
+              >
+                ×
+              </button>
+            </form>
+          ) : (
+            <button type="button" className="btn-secundario" onClick={() => setAgregandoRemision(true)}>
+              + Asociar remisión
+            </button>
+          )}
         </div>
 
         {mensaje && <div className={`mensaje-form ${mensaje.tipo}`}>{mensaje.texto}</div>}

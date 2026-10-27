@@ -47,9 +47,13 @@ export interface Categoria {
 export interface GaleriaCarpeta {
   id: number;
   nombre: string;
-  remision_numero: number | null;
   creado_en: string;
   total_fotos: number;
+  // Antes era un solo "remision_numero" -- una carpeta puede tener varias
+  // remisiones asociadas (ver 0029_galeria_remisiones_multiples.sql), para
+  // no obligar a crear una carpeta nueva por cada salida separada que
+  // termine siendo parte del mismo envio fisico.
+  remisiones: number[];
 }
 
 export interface GaleriaFoto {
