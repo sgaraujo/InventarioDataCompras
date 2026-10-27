@@ -1,5 +1,5 @@
 import jsPDF from "jspdf";
-import { FIRMA_XIOMARA_JPG } from "../assets/remision/firma";
+import { supabase } from "../api/supabaseClient";
 
 // Recrea el formato oficial "Remision_salida_materiales_INTEEGRA.docx"
 // (version con una sola tabla de datos combinada). Sin logo ni cinta
@@ -49,7 +49,38 @@ const OPCIONES_TIPO_MOVIMIENTO: Exclude<TipoMovimientoRemision, "">[] = [
   "Otro",
 ];
 
-function construirRemisionPdf(datos: DatosRemisionSalida): jsPDF {
+// La firma real de Xiomara ya no vive en el codigo (ver 0028_bucket_privado_
+// firma.sql) -- se pide al bucket privado "privado" en el momento de armar
+// el PDF, solo accesible con sesion de un usuario activo. Se cachea en
+// memoria (dura lo que dure la pestaña abierta) para no volver a pedirla
+// cada vez que alguien reimprime una remision. Si la descarga falla por lo
+// que sea (sin internet, archivo no subido todavia, etc.) el PDF se genera
+// igual, solo que sin la imagen -- no es razon para bloquear la remision.
+let firmaXiomaraCache: string | null | undefined;
+
+function blobADataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const lector = new FileReader();
+    lector.onloadend = () => resolve(lector.result as string);
+    lector.onerror = () => reject(lector.error);
+    lector.readAsDataURL(blob);
+  });
+}
+
+async function obtenerFirmaXiomara(): Promise<string | null> {
+  if (firmaXiomaraCache !== undefined) return firmaXiomaraCache;
+  try {
+    const { data, error } = await supabase.storage.from("privado").download("firma-xiomara.jpg");
+    if (error || !data) throw error ?? new Error("Descarga vacía");
+    firmaXiomaraCache = await blobADataUrl(data);
+  } catch (err) {
+    console.error("No se pudo cargar la firma para la remisión:", err);
+    firmaXiomaraCache = null;
+  }
+  return firmaXiomaraCache;
+}
+
+function construirRemisionPdf(datos: DatosRemisionSalida, firmaXiomara: string | null): jsPDF {
   const doc = new jsPDF({ unit: "mm", format: "letter" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -237,7 +268,7 @@ function construirRemisionPdf(datos: DatosRemisionSalida): jsPDF {
       doc.text("Firma:", x + 3, y + 13);
       const firmaW = 22;
       const firmaH = firmaW / FIRMA_RATIO;
-      doc.addImage(FIRMA_XIOMARA_JPG, "JPEG", x + 3, y + 14, firmaW, firmaH);
+      if (firmaXiomara) doc.addImage(firmaXiomara, "JPEG", x + 3, y + 14, firmaW, firmaH);
       doc.text(`Fecha: ${datos.fechaEntrega}`, x + 3, y + 14 + firmaH + 5);
     } else {
       doc.text("Nombre: ______________________", x + 3, y + 9);
@@ -266,11 +297,20 @@ function nombreArchivo(datos: DatosRemisionSalida): string {
   return `${datos.numero}.pdf`;
 }
 
-export function descargarRemisionPdf(datos: DatosRemisionSalida): void {
-  construirRemisionPdf(datos).save(nombreArchivo(datos));
+export async function descargarRemisionPdf(datos: DatosRemisionSalida): Promise<void> {
+  const firma = await obtenerFirmaXiomara();
+  construirRemisionPdf(datos, firma).save(nombreArchivo(datos));
 }
 
-export function abrirRemisionPdf(datos: DatosRemisionSalida): void {
-  const url = construirRemisionPdf(datos).output("bloburl");
-  window.open(url, "_blank");
+export async function abrirRemisionPdf(datos: DatosRemisionSalida): Promise<void> {
+  // window.open hay que llamarlo apenas entra (todavia dentro del gesto del
+  // click) -- si se espera a tener la firma primero, algunos navegadores
+  // (Safari sobre todo) tratan el popup como no solicitado por el usuario y
+  // lo bloquean en silencio. Se abre una pestaña en blanco de una vez y se
+  // le pone la URL real cuando ya este lista.
+  const ventana = window.open("", "_blank");
+  const firma = await obtenerFirmaXiomara();
+  const url = construirRemisionPdf(datos, firma).output("bloburl");
+  if (ventana) ventana.location.href = url;
+  else window.open(url, "_blank");
 }

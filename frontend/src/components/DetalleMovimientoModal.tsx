@@ -39,7 +39,7 @@ export function DetalleMovimientoModal<T extends ItemAgrupable>({
         serieLote: it.referencia_codigo ?? "—",
       })),
     };
-    abrirRemisionPdf(datos);
+    void abrirRemisionPdf(datos);
   }
 
   return (

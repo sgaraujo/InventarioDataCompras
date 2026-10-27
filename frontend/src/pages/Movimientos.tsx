@@ -438,7 +438,7 @@ export function Movimientos() {
             {ultimaRemision.items.length === 1 ? "" : "es"}).
           </span>
           <div style={{ display: "flex", gap: 8 }}>
-            <button type="button" className="btn-secundario" onClick={() => abrirRemisionPdf(ultimaRemision)}>
+            <button type="button" className="btn-secundario" onClick={() => void abrirRemisionPdf(ultimaRemision)}>
               <Printer size={14} /> Ver / Imprimir
             </button>
           </div>
