@@ -2,12 +2,16 @@ import { useState, type FormEvent } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { ApiClientError } from "../api/client";
+import { tomarAvisoSesionExpirada } from "../lib/sesion";
 
 export function Login() {
   const { usuario, cargando, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const mensajeExito = (location.state as { mensaje?: string } | null)?.mensaje;
+  // Se lee (y se borra) una sola vez -- si AuthContext cerro la sesion por
+  // vencida, deja esta marca para explicar por que volvio al login solo.
+  const [sesionExpiradaAviso] = useState(() => tomarAvisoSesionExpirada());
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -36,6 +40,11 @@ export function Login() {
         <img src="/img/logo1.png" alt="Inteegra" />
         <h1>Control de Inventarios</h1>
         {mensajeExito && <div className="login-msg login-msg--ok">{mensajeExito}</div>}
+        {sesionExpiradaAviso && (
+          <div className="login-msg login-msg--aviso">
+            Tu sesión se cerró por seguridad (más de 8 horas abierta). Inicia sesión de nuevo.
+          </div>
+        )}
         <form onSubmit={handleSubmit}>
           <div className="campo">
             <label htmlFor="email">Correo</label>

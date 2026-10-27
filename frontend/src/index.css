@@ -1090,6 +1090,7 @@ form.form-grid button.btn-secundario:hover {
 }
 
 .login-msg--ok { color: var(--success); }
+.login-msg--aviso { color: var(--warning); }
 
 .login-links {
   margin-top: 16px;
