@@ -310,7 +310,7 @@ export async function abrirRemisionPdf(datos: DatosRemisionSalida): Promise<void
   // le pone la URL real cuando ya este lista.
   const ventana = window.open("", "_blank");
   const firma = await obtenerFirmaXiomara();
-  const url = construirRemisionPdf(datos, firma).output("bloburl");
+  const url = construirRemisionPdf(datos, firma).output("bloburl").toString();
   if (ventana) ventana.location.href = url;
   else window.open(url, "_blank");
 }
