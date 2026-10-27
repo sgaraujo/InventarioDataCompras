@@ -849,6 +849,18 @@ form.form-grid textarea:focus {
   border-color: var(--teal);
 }
 
+/* Boton de enviar + Cancelar al final del formulario, en la misma fila en
+   vez de uno encima del otro. */
+form.form-grid .form-acciones {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 12px;
+}
+
+form.form-grid .form-acciones button {
+  flex: 1;
+}
+
 form.form-grid button {
   grid-column: 1 / -1;
   padding: 11px;

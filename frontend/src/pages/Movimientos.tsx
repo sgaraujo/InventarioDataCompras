@@ -474,6 +474,7 @@ export function Movimientos() {
                   materiales={materiales}
                   materialId={form.material_id}
                   onSeleccionar={seleccionarMaterial}
+                  requerido={false}
                 />
                 {materialSeleccionado?.maneja_referencias && (
                   <div>
@@ -569,6 +570,7 @@ export function Movimientos() {
                   materiales={materiales}
                   materialId={form.material_id}
                   onSeleccionar={seleccionarMaterial}
+                  requerido={false}
                 />
                 <div>
                   <label>Referencia</label>
@@ -762,19 +764,21 @@ export function Movimientos() {
                 <input type="file" accept="image/*" onChange={(e) => setActaEntrega(e.target.files?.[0] ?? null)} />
               </div>
             )}
-            <button
-              type="submit"
-              disabled={
-                enviando ||
-                (entradaMultiReferencia && lineasReferencia.length === 0) ||
-                (salidaMultiMaterial && lineasSalida.length === 0)
-              }
-            >
-              {enviando ? "Registrando..." : form.tipo === "entrada" ? "Registrar entrada" : "Registrar salida"}
-            </button>
-            <button type="button" className="btn-secundario" onClick={cerrarForm}>
-              Cancelar
-            </button>
+            <div className="form-acciones">
+              <button
+                type="submit"
+                disabled={
+                  enviando ||
+                  (entradaMultiReferencia && lineasReferencia.length === 0) ||
+                  (salidaMultiMaterial && lineasSalida.length === 0)
+                }
+              >
+                {enviando ? "Registrando..." : form.tipo === "entrada" ? "Registrar entrada" : "Registrar salida"}
+              </button>
+              <button type="button" className="btn-secundario" onClick={cerrarForm}>
+                Cancelar
+              </button>
+            </div>
           </form>
           {mensaje && <div className={`mensaje-form ${mensaje.tipo}`}>{mensaje.texto}</div>}
         </Modal>

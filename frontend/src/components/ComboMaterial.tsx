@@ -9,10 +9,18 @@ export function ComboMaterial({
   materiales,
   materialId,
   onSeleccionar,
+  requerido = true,
 }: {
   materiales: Material[];
   materialId: string;
   onSeleccionar: (id: string) => void;
+  // En un flujo de carrito (Salida con varios materiales, Entrada con varias
+  // referencias) este combo es solo para "elegir el siguiente a agregar" --
+  // vuelve a quedar vacio despues de cada "+Agregar", y al estar dentro del
+  // mismo <form> que el boton final, un required fijo bloqueaba el envio
+  // aunque el carrito ya tuviera items. Lo que de verdad exige al menos un
+  // item es el boton de enviar (disabled si el carrito esta vacio).
+  requerido?: boolean;
 }) {
   const [texto, setTexto] = useState(() => {
     const actual = materiales.find((m) => String(m.id) === materialId);
@@ -44,7 +52,7 @@ export function ComboMaterial({
         type="text"
         placeholder="Escribe para buscar por descripción o código..."
         autoComplete="off"
-        required
+        required={requerido}
         value={texto}
         onFocus={() => setAbierto(true)}
         onChange={(e) => {
