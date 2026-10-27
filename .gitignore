@@ -12,6 +12,5 @@ dist/
 DESARROLLO INVENTARIO.xlsx
 *.xlsx
 
-# Copia local incompleta de otro frontend y config local de Claude Code
-datacenter-frontend/
+# Config local de Claude Code
 .claude/
