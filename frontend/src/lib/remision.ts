@@ -226,7 +226,6 @@ function construirRemisionPdf(datos: DatosRemisionSalida, firmaXiomara: string |
 
   const filas = datos.items.length > 0 ? datos.items : [{ codigo: "", descripcion: "", cantidad: "", serieLote: "" }];
   filas.forEach((item, i) => {
-    asegurarEspacio(hFila);
     const valores = [
       String(i + 1),
       item.codigo,
@@ -236,16 +235,25 @@ function construirRemisionPdf(datos: DatosRemisionSalida, firmaXiomara: string |
       item.serieLote,
       item.observaciones || "",
     ];
-    let x = MARGEN;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
+    // Descripcion y Observaciones son las unicas columnas con texto largo
+    // que de verdad puede partirse en varias lineas -- la fila crece segun
+    // la que mas lineas necesite, para que el texto nunca se monte sobre la
+    // fila de abajo (antes la altura era fija y una observacion larga se
+    // salia de su fila).
+    const lineasPorColumna = cols.map((c, idx) => doc.splitTextToSize(valores[idx] || "", c.w - 2));
+    const maxLineas = Math.max(...lineasPorColumna.map((l) => l.length), 1);
+    const alturaFila = Math.max(hFila, maxLineas * 4 + 5);
+    asegurarEspacio(alturaFila);
+
+    let x = MARGEN;
     cols.forEach((c, idx) => {
-      doc.rect(x, y, c.w, hFila, "D");
-      const lineas = doc.splitTextToSize(valores[idx] || "", c.w - 2);
-      doc.text(lineas, x + c.w / 2, y + 5.5, { align: "center", maxWidth: c.w - 2 });
+      doc.rect(x, y, c.w, alturaFila, "D");
+      doc.text(lineasPorColumna[idx], x + c.w / 2, y + 5.5, { align: "center", maxWidth: c.w - 2 });
       x += c.w;
     });
-    y += hFila;
+    y += alturaFila;
   });
 
   // --- Control y autorizacion ---
