@@ -125,7 +125,6 @@ export function Historial() {
                 <th>Tipo</th>
                 <th>Cantidad</th>
                 <th>Solicitante</th>
-                <th>Observaciones</th>
                 <th>Ubicación</th>
                 <th>Evidencia</th>
               </tr>
@@ -133,19 +132,19 @@ export function Historial() {
             <tbody>
               {cargando ? (
                 <tr>
-                  <td colSpan={10} className="empty-state">
+                  <td colSpan={9} className="empty-state">
                     Cargando...
                   </td>
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={10} className="empty-state">
+                  <td colSpan={9} className="empty-state">
                     No se pudieron cargar los movimientos ({error}).
                   </td>
                 </tr>
               ) : pageItems.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="empty-state">
+                  <td colSpan={9} className="empty-state">
                     No hay movimientos con ese filtro.
                   </td>
                 </tr>
@@ -178,7 +177,6 @@ export function Historial() {
                     </td>
                     <td>{f.cantidad != null ? money(f.cantidad) : "—"}</td>
                     <td>{f.solicitanteNombre || "—"}</td>
-                    <td>{f.observaciones || "—"}</td>
                     <td>{textoUbicacionMovimiento({ ubicacion: f.ubicacion, ubicacion_origen: f.ubicacionOrigen })}</td>
                     <td>
                       <div style={{ display: "flex", gap: 6 }}>

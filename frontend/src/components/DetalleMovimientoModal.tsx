@@ -37,6 +37,7 @@ export function DetalleMovimientoModal<T extends ItemAgrupable>({
         descripcion: it.material_descripcion,
         cantidad: money(it.cantidad),
         serieLote: it.referencia_codigo ?? "—",
+        observaciones: it.observaciones ?? "",
       })),
     };
     void abrirRemisionPdf(datos);
@@ -56,6 +57,7 @@ export function DetalleMovimientoModal<T extends ItemAgrupable>({
               <th>Descripción</th>
               <th>Referencia</th>
               <th>Cantidad</th>
+              <th>Observaciones</th>
             </tr>
           </thead>
           <tbody>
@@ -65,6 +67,7 @@ export function DetalleMovimientoModal<T extends ItemAgrupable>({
                 <td>{it.material_descripcion}</td>
                 <td>{it.referencia_codigo || "—"}</td>
                 <td>{money(it.cantidad)}</td>
+                <td>{it.observaciones || "—"}</td>
               </tr>
             ))}
           </tbody>

@@ -29,9 +29,12 @@ export interface ItemAgrupable {
 // la misma Entrada/Salida (mismo remision_numero, esGrupo = true). Los
 // campos que varian entre los items del grupo (material, referencia,
 // cantidad) quedan en null para que la pantalla muestre "—" o "Varios";
-// los que son iguales en todos (solicitante, observaciones, ubicacion,
-// foto/adjunto, datos de la remision) se toman del primero porque siempre
-// coinciden -- son el mismo valor que se escribio una sola vez al registrar.
+// los que son iguales en todos (solicitante, ubicacion, foto/adjunto, datos
+// de la remision) se toman del primero porque siempre coinciden -- son el
+// mismo valor que se escribio una sola vez al registrar. "observaciones" NO
+// esta aca a proposito: ahora es por material (ver ItemAgrupable), cada item
+// del grupo puede traer la suya -- se lee directo de cada item, no se
+// resume a nivel de fila (ver DetalleMovimientoModal.tsx).
 export interface FilaMovimiento<T extends ItemAgrupable> {
   id: string;
   esGrupo: boolean;
@@ -43,7 +46,6 @@ export interface FilaMovimiento<T extends ItemAgrupable> {
   referenciaCodigo: string | null;
   cantidad: number | null;
   solicitanteNombre: string | null;
-  observaciones: string | null;
   foto: string | null;
   adjunto: string | null;
   ubicacion: string | null;
@@ -75,7 +77,6 @@ function filaDesdeItems<T extends ItemAgrupable>(items: T[], lote: number | null
     referenciaCodigo: valorUniforme(items.map((i) => i.referencia_codigo)),
     cantidad: valorUniforme(items.map((i) => i.cantidad)),
     solicitanteNombre: base.solicitante_nombre,
-    observaciones: base.observaciones,
     foto: base.foto,
     adjunto: base.adjunto,
     ubicacion: base.ubicacion,

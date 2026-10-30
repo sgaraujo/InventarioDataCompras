@@ -68,10 +68,21 @@ export function Movimientos() {
   );
   // Para Salida: carrito de materiales distintos (cada uno con su propia
   // referencia si aplica) -- se registran todos como movimientos separados
-  // al enviar, y la remision del PDF sale con todos juntos en la tabla.
+  // al enviar, y la remision del PDF sale con todos juntos en la tabla. La
+  // observacion es por linea (no una sola para toda la salida, ver la
+  // discusion de 2026-10-30) -- cada material puede tener la suya o ninguna.
   const [lineasSalida, setLineasSalida] = useState<
-    { material_id: number; codigo: string; descripcion: string; referencia_id: number | null; referenciaCodigo: string | null; cantidad: string }[]
+    {
+      material_id: number;
+      codigo: string;
+      descripcion: string;
+      referencia_id: number | null;
+      referenciaCodigo: string | null;
+      cantidad: string;
+      observaciones: string | null;
+    }[]
   >([]);
+  const [observacionLinea, setObservacionLinea] = useState("");
 
   async function cargarMateriales() {
     const { data } = await supabase
@@ -108,6 +119,7 @@ export function Movimientos() {
     setUltimaRemision(null);
     setLineasReferencia([]);
     setLineasSalida([]);
+    setObservacionLinea("");
     setMostrarForm(true);
   }
 
@@ -141,6 +153,7 @@ export function Movimientos() {
     setMensaje(null);
     setLineasReferencia([]);
     setLineasSalida([]);
+    setObservacionLinea("");
   }
 
   const materialSeleccionado = materiales.find((m) => String(m.id) === form.material_id);
@@ -226,6 +239,7 @@ export function Movimientos() {
           referencia_id: ref.id,
           referenciaCodigo: ref.codigo,
           cantidad: form.cantidad,
+          observaciones: observacionLinea.trim() || null,
         };
         const existe = prev.some((l) => l.material_id === nuevaLinea.material_id && l.referencia_id === ref.id);
         if (existe) {
@@ -251,6 +265,7 @@ export function Movimientos() {
           referencia_id: null,
           referenciaCodigo: null,
           cantidad: form.cantidad,
+          observaciones: observacionLinea.trim() || null,
         };
         const existe = prev.some((l) => l.material_id === nuevaLinea.material_id && l.referencia_id === null);
         if (existe) {
@@ -262,6 +277,7 @@ export function Movimientos() {
 
     setMensaje(null);
     setForm((f) => ({ ...f, material_id: "", referencia_id: "", cantidad: "" }));
+    setObservacionLinea("");
     setReferenciasDelMaterial([]);
     setComboResetKey((k) => k + 1);
   }
@@ -318,7 +334,7 @@ export function Movimientos() {
             cantidad: Number(l.cantidad),
             referencia_id: l.referencia_id,
             solicitante_id: form.solicitante_id ? Number(form.solicitante_id) : null,
-            observaciones: form.observaciones || null,
+            observaciones: l.observaciones,
             ubicacion,
             remision_numero: remisionNumero,
             area_proyecto: areaProyecto,
@@ -354,6 +370,7 @@ export function Movimientos() {
             descripcion: l.descripcion,
             cantidad: money(Number(l.cantidad)),
             serieLote: l.referenciaCodigo ?? "—",
+            observaciones: l.observaciones ?? "",
           })),
         });
       } else if (entradaMultiReferencia) {
@@ -460,6 +477,7 @@ export function Movimientos() {
               nuevoSolicitante.trim() ||
               lineasReferencia.length > 0 ||
               lineasSalida.length > 0 ||
+              observacionLinea.trim() ||
               form.area_proyecto.trim() ||
               form.centro_costo_texto.trim() ||
               form.motivo_salida.trim() ||
@@ -528,6 +546,15 @@ export function Movimientos() {
                   )}
                 </div>
                 <div className="full">
+                  <label>Observación de este material (opcional)</label>
+                  <input
+                    type="text"
+                    placeholder="Solo aplica a este material -- sale en su propia columna en la remisión"
+                    value={observacionLinea}
+                    onChange={(e) => setObservacionLinea(e.target.value)}
+                  />
+                </div>
+                <div className="full">
                   <button
                     type="button"
                     className="btn-secundario"
@@ -545,7 +572,11 @@ export function Movimientos() {
                   {lineasSalida.length > 0 ? (
                     <div className="tags-lista">
                       {lineasSalida.map((l) => (
-                        <span key={`${l.material_id}-${l.referencia_id ?? "x"}`} className="tag-chip">
+                        <span
+                          key={`${l.material_id}-${l.referencia_id ?? "x"}`}
+                          className="tag-chip"
+                          title={l.observaciones ?? undefined}
+                        >
                           {l.codigo}
                           {l.referenciaCodigo ? ` (${l.referenciaCodigo})` : ""} — {l.cantidad}
                           <button
@@ -736,15 +767,17 @@ export function Movimientos() {
                 </button>
               </div>
             </div>
-            <div className="full">
-              <label>Observaciones</label>
-              <input
-                type="text"
-                placeholder={salidaMultiMaterial ? "Opcional -- se guarda igual en cada material de esta salida" : "Opcional"}
-                value={form.observaciones}
-                onChange={(e) => setForm({ ...form, observaciones: e.target.value })}
-              />
-            </div>
+            {!salidaMultiMaterial && (
+              <div className="full">
+                <label>Observaciones</label>
+                <input
+                  type="text"
+                  placeholder="Opcional"
+                  value={form.observaciones}
+                  onChange={(e) => setForm({ ...form, observaciones: e.target.value })}
+                />
+              </div>
+            )}
             <div>
               <label>Foto de evidencia (opcional)</label>
               <input type="file" accept="image/*" onChange={(e) => setFoto(e.target.files?.[0] ?? null)} />

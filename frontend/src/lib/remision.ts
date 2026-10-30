@@ -11,6 +11,10 @@ export interface ItemRemision {
   descripcion: string;
   cantidad: string;
   serieLote: string;
+  // Observacion propia de este material (no de toda la remision) -- ver
+  // discusion 2026-10-30. Opcional, va en la columna "Observaciones" de la
+  // tabla de detalle, no en el resto del documento.
+  observaciones?: string;
 }
 
 export type TipoMovimientoRemision = "" | "Consumo" | "Traslado" | "Préstamo" | "Alquiler" | "Otro";
@@ -223,7 +227,15 @@ function construirRemisionPdf(datos: DatosRemisionSalida, firmaXiomara: string |
   const filas = datos.items.length > 0 ? datos.items : [{ codigo: "", descripcion: "", cantidad: "", serieLote: "" }];
   filas.forEach((item, i) => {
     asegurarEspacio(hFila);
-    const valores = [String(i + 1), item.codigo, item.descripcion, "UND", item.cantidad, item.serieLote, ""];
+    const valores = [
+      String(i + 1),
+      item.codigo,
+      item.descripcion,
+      "UND",
+      item.cantidad,
+      item.serieLote,
+      item.observaciones || "",
+    ];
     let x = MARGEN;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
