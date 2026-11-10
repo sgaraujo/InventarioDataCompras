@@ -195,6 +195,10 @@ export function Materiales() {
       }
 
       const filas: (string | number | null)[][] = [];
+      // Una foto por fila, mismo orden que `filas` -- la del material en
+      // general, o la de su referencia puntual cuando el renglon es de una
+      // (la foto real de esa unidad, no la generica del material).
+      const fotos: (string | null)[] = [];
       for (const m of materialesFiltrados) {
         const base = [
           m.codigo,
@@ -206,6 +210,7 @@ export function Materiales() {
         ];
         if (!m.maneja_referencias) {
           filas.push([
+            "",
             ...base,
             "",
             m.ubicacion ?? "",
@@ -213,17 +218,28 @@ export function Materiales() {
             m.precio_unitario ?? "",
             m.precio_unitario != null ? m.precio_unitario * m.stock_actual : "",
           ]);
+          fotos.push(m.foto ?? null);
           continue;
         }
         const refs = referenciasPorMaterial[m.id] ?? [];
         if (refs.length === 0) {
           // maneja referencias pero todavia no tiene ninguna cargada -- igual
           // sale en el export (una fila, sin perderlo) con stock en 0.
-          filas.push([...base, "", m.ubicacion ?? "", 0, "", ""]);
+          filas.push(["", ...base, "", m.ubicacion ?? "", 0, "", ""]);
+          fotos.push(m.foto ?? null);
           continue;
         }
         for (const r of refs) {
-          filas.push([...base, r.codigo, r.ubicacion ?? "", r.stock_disponible, r.precio_unitario ?? "", r.valor_total ?? ""]);
+          filas.push([
+            "",
+            ...base,
+            r.codigo,
+            r.ubicacion ?? "",
+            r.stock_disponible,
+            r.precio_unitario ?? "",
+            r.valor_total ?? "",
+          ]);
+          fotos.push(r.foto ?? null);
         }
       }
 
@@ -231,6 +247,7 @@ export function Materiales() {
         `materiales_${new Date().toISOString().slice(0, 10)}.xlsx`,
         "Materiales",
         [
+          { encabezado: "Imagen", ancho: 12 },
           { encabezado: "Código", ancho: 14 },
           { encabezado: "Descripción", ancho: 42 },
           { encabezado: "Empresa", ancho: 20 },
@@ -243,7 +260,8 @@ export function Materiales() {
           { encabezado: "Precio unitario", ancho: 16, formato: '"$"#,##0' },
           { encabezado: "Valor total", ancho: 16, formato: '"$"#,##0' },
         ],
-        filas
+        filas,
+        { columna: 0, urls: fotos }
       );
     } finally {
       setExportando(false);
